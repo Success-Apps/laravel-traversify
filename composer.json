@@ -1,5 +1,5 @@
 {
-    "name": "success-apps/laravel-traversify",
+    "name": "jayceedaily/laravel-traversify",
     "description": "easy traverse eloquent models",
     "type": "library",
     "license": "MIT",
@@ -7,10 +7,6 @@
         {
             "name": "Jaycee Daily",
             "email": "jayceedaily@gmail.com"
-        },
-        {
-            "name": "Success Apps",
-            "email": "hi@successapps.com.au"
         }
     ],
     "minimum-stability": "dev",
