@@ -18,10 +18,8 @@ trait HasSearch
      * Initialize search query
      *
      * @param Builder $query
-     * @param string|null $keyword
-     * @return void
-     * @throws RuntimeException
-     * @throws InvalidArgumentException
+     * @param String $keyword
+     * @throws Exception
      */
     public function scopeSearch(Builder $query, String $keyword = '')
     {
@@ -58,6 +56,7 @@ trait HasSearch
                     $model = $model->$relationship()->getRelated();
 
                     $tableName = $model->getTable();
+                    $alias = time();
 
                     if ($key === array_key_last($searchables)) {
 
@@ -71,8 +70,11 @@ trait HasSearch
                     [$joined, $cleanJoinList] = $this->isJoined($tableJoins, $tableName);
 
                     if(!$joined) {
-
-                        $query->leftJoinRelationship(implode('.', $searchables));
+                        if (count($searchables) === 1) {
+                            $query->leftJoinRelationship(implode('.', $searchables), $alias);
+                        } else {
+                            $query->leftJoinRelationshipUsingAlias(implode('.', $searchables), $alias);
+                        }
                     }
                 }
 
