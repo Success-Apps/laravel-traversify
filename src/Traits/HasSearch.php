@@ -74,7 +74,12 @@ trait HasSearch
 
                 $tableName = $this->getTable();
 
-                array_push($columns, "$tableName.$searchColumn");
+                $column = $tableName.'.'.$searchColumn;
+                if ($searchColumn == 'id') {
+                    $prefix =  strtoupper(substr($tableName, 0, 1));
+                    $column = $prefix.', '.$tableName.'.'.$searchColumn;
+                }
+                array_push($columns, $column);
             }
         }
 
