@@ -2,6 +2,17 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Expression;
+use Illuminate\Support\Facades\Log;
+use Kirschbaum\PowerJoins\PowerJoinClause;
 use RuntimeException;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -10,8 +21,6 @@ use Illuminate\Database\Eloquent\Builder;
 
 trait HasSearch
 {
-    use PowerJoins;
-
     protected $like = 'LIKE';
 
     /**
@@ -37,120 +46,378 @@ trait HasSearch
             $this->like = 'ILIKE';
         }
 
-        $sortedSearches = $this->sortSearches($this->search);
+        $searchableList = $this->buildSearchablesArray();
+
+        if (is_null($query->getSelect())) {
+            $query->select(sprintf('%s.*', $query->getModel()->getTable()));
+        }
 
         $columns = [];
+        $columnList = [];
 
-        foreach($sortedSearches as $searchable) {
+        $motheOfAllRelationsTable = (new self)->getTable();
+        $lastRelationTable = $motheOfAllRelationsTable;
 
-            $searchables = explode('.', $searchable);
+        foreach($searchableList as $relations => $columns) {
 
-            $searchColumn = array_pop($searchables);
+            $lastRelationTable = $motheOfAllRelationsTable;
 
-            if (count($searchables)) {
+            $relationsSplit = explode('.', $relations);
 
-                $model = new self;
+            $parentModel = new self;
+            $currentModel = new self;
 
-                foreach($searchables as $key => $relationship) {
+            foreach ($relationsSplit as $index => $relationName) {    // activeMeter.site.address
 
-                    $model = $model->$relationship()->getRelated();
+                if ($relationName != $motheOfAllRelationsTable) {
 
-                    $tableName = $model->getTable();
-                    $alias = time();
+                    $relation = $currentModel->{$relationName}();
+                    $currentModel = $relation->getRelated();
+                    $tableName = $currentModel->getTable();
 
-                    if ($key === array_key_last($searchables)) {
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
 
-                        $column = $this->prepSearchId($tableName, $searchColumn);
+                        $this->performJoinForEloquent($query, $relation);
+                    } else {
 
-                        array_push($columns, $column);
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
                     }
 
-                    $tableJoins = collect($query->getQuery()->joins)->pluck('table');
-
-                    [$joined, $cleanJoinList] = $this->isJoined($tableJoins, $tableName);
-
-                    if(!$joined) {
-                        if (count($searchables) === 1) {
-                            $query->leftJoinRelationship(implode('.', $searchables), $alias);
-                        } else {
-                            $query->leftJoinRelationshipUsingAlias(implode('.', $searchables), $alias);
-                        }
+                    if (array_key_last($relationsSplit) == $index) {
+                        $lastRelationTable = $tableName;
                     }
+
+                    $parentModel = $currentModel;
                 }
+            }
 
-            } else {
+            foreach ($columns as $searchColumn) {
+                $currentColumn = $this->prepSearchId($lastRelationTable, $searchColumn);
 
-                $tableName = $this->getTable();
-
-                $column = $this->prepSearchId($tableName, $searchColumn);
-
-                array_push($columns, $column);
+                array_push($columnList, $currentColumn);
             }
         }
 
-        $columns = implode(', ', $columns);
+        $columns = implode(', ', $columnList);
 
         return $query->whereRaw("CONCAT_WS(' ', {$columns}) {$this->like} ?", "%{$keyword}%");
     }
 
     /**
-     * Sort Searches
-     *
-     * @param $searches
-     * @return array
+     * Perform the JOIN clause for eloquent power joins.
      */
-    private function sortSearches($searches) {
+    public function performJoinForEloquent(Builder $query, $relation)
+    {
+        $joinType = 'leftJoin';
 
-        $counted = [];
-        $i = 0;
+        if ($relation instanceof BelongsToMany) {
 
-        foreach ($searches as $search) {
-            array_push($counted, ['index'=> $i, 'count' => substr_count($search, '.')]);
-            $i++;
+            $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType);
+        } elseif ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany) {
+
+            $this->performJoinForEloquentForMorph($query, $relation, $joinType);
+        } elseif ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany) {
+
+            $this->performJoinForEloquentForHasMany($query, $relation, $joinType);
+        } elseif ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
+
+            $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType);
+        } elseif ($relation instanceof BelongsTo) {
+
+            $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType);
+        };
+    }
+
+    /**
+     * Perform the JOIN clause for the BelongsTo (or similar) relationships.
+     */
+    protected function performJoinForEloquentForBelongsTo(Builder $query, $relation, $joinType)
+    {
+        $relationTable = $relation->getModel()->getTable();
+        $parentTable = $relation->getParent()->getTable();
+
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable) {
+
+            $join->on(
+                $relation->getQualifiedOwnerKeyName(),
+                '=',
+                $relation->getQualifiedForeignKeyName()
+            );
+
+            $ignoredKeys = [$relation->getQualifiedOwnerKeyName(), $relation->getQualifiedForeignKeyName()];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getModel())) {
+                $join->whereNull("{$relationTable}.{$relation->getModel()->getDeletedAtColumn()}");
+            }
+        });
+    }
+
+    /**
+     * Perform the JOIN clause for the BelongsToMany (or similar) relationships.
+     */
+    protected function performJoinForEloquentForBelongsToMany(Builder $query, $relation, $joinType)
+    {
+        $pivotTable = $relation->getRelated()->getTable();
+        $relationTable = $relation->getModel()->getTable();
+
+        $query->{$joinType}($pivotTable, function ($join) use ($relation, $pivotTable) {
+
+            $join->on(
+                $relation->getQualifiedForeignPivotKeyName(),
+                '=',
+                $relation->getQualifiedParentKeyName()
+            );
+
+            $ignoredKeys = [$relation->getQualifiedForeignPivotKeyName(), $relation->getQualifiedParentKeyName()];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getRelated())) {
+                $join->whereNull("{$pivotTable}.{$relation->getRelated()->getDeletedAtColumn()}");
+            }
+        });
+
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable) {
+
+            $join->on(
+
+                "{$relationTable}.{$relation->getModel()->getKeyName()}",
+                '=',
+                $relation->getQualifiedRelatedPivotKeyName()
+            );
+
+            $ignoredKeys = ["{$relationTable}.{$relation->getModel()->getKeyName()}", $relation->getQualifiedRelatedPivotKeyName()];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getModel())) {
+                $join->whereNull("{$relationTable}.{$relation->getModel()->getDeletedAtColumn()}");
+            }
+        });
+    }
+
+    /**
+     * Perform the JOIN clause for the Morph (or similar) relationships.
+     */
+    protected function performJoinForEloquentForMorph(Builder $query, $relation, $joinType)
+    {
+        $parentTable = $relation->getParent()->getTable();
+        $relationTable = $relation->getModel()->getTable();
+
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable) {
+
+            $join->on(
+
+                $relation->getQualifiedForeignKeyName(),
+                '=',
+                "{$parentTable}.{$relation->getLocalKeyName()}"
+            );
+
+            $ignoredKeys = [$relation->getQualifiedForeignKeyName(), "{$parentTable}.{$relation->getLocalKeyName()}"];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getModel())) {
+                $join->whereNull("{$relationTable}.{$relation->getModel()->getDeletedAtColumn()}");
+            }
+        });
+
+    }
+
+    /**
+     * Perform the JOIN clause for the HasMany (or similar) relationships.
+     */
+    protected function performJoinForEloquentForHasMany(Builder $query, $relation, $joinType)
+    {
+        $parentTable = $relation->getParent()->getTable();
+        $relationTable = $relation->getRelated()->getTable();
+
+        $query->{$joinType}($relationTable, function ($join) use ($relationTable, $parentTable, $relation) {
+
+            $join->on(
+                "{$parentTable}.{$relation->getLocalKeyName()}",
+                '=',
+                $relation->getQualifiedForeignKeyName()
+            );
+
+            $ignoredKeys = ["{$parentTable}.{$relation->getLocalKeyName()}", $relation->getQualifiedForeignKeyName()];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getRelated())) {
+                $join->whereNull("{$relationTable}.{$relation->getRelated()->getDeletedAtColumn()}");
+            }
+        });
+    }
+
+    /**
+     * Perform the JOIN clause for the HasManyThrough relationships.
+     */
+    protected function performJoinForEloquentForHasManyThrough(Builder $query, $relation, $joinType)
+    {
+        $throughTable = $relation->getParent()->getTable();
+        $farTable = $relation->getRelated()->getTable();
+
+        $query->{$joinType}($throughTable, function ($join) use ($relation, $throughTable, $farTable) {
+
+            $join->on(
+                "{$throughTable}.{$relation->getFirstKeyName()}",
+                '=',
+                $relation->getQualifiedLocalKeyName()
+            );
+
+
+            $ignoredKeys = ["{$throughTable}.{$relation->getFirstKeyName()}", $relation->getQualifiedLocalKeyName(), "{$farTable}.{$relation->getForeignKeyName()}", "{$throughTable}.{$relation->getSecondLocalKeyName()}"];
+            $this->applyExtraConditions($relation, $join, $ignoredKeys);
+
+            if ($relation->usesSoftDeletes($relation->getParent())) {
+                $join->whereNull("{$throughTable}.{$relation->getParent()->getDeletedAtColumn()}");
+            }
+        });
+
+        $query->{$joinType}($farTable, function ($join) use ($relation, $throughTable, $farTable) {
+
+            $join->on(
+                "{$farTable}.{$relation->getForeignKeyName()}",
+                '=',
+                "{$throughTable}.{$relation->getSecondLocalKeyName()}"
+            );
+
+            if ($relation->usesSoftDeletes($relation->getModel())) {
+                $join->whereNull("{$farTable}.{$relation->getModel()->getDeletedAtColumn()}");
+            }
+        });
+
+    }
+
+    /**
+     * Extra conditions on Relationships
+     *
+     * @return \Closure
+     */
+    public function applyExtraConditions($relation, $join, $ignoredKeys)
+    {
+        foreach ($relation->getQuery()->getQuery()->wheres as $index => $condition) {
+
+            if (! in_array($condition['type'], ['Basic', 'Null', 'NotNull', 'Nested'])) {
+                continue;
+            }
+
+            if (in_array($condition['type'], ['Null', 'NotNull']) && in_array($condition['column'], $ignoredKeys)) {
+                continue;
+            }
+
+            if ($condition['type'] == 'Nested') {
+
+                $method = "apply{$condition['type']}Condition";
+                $this->$method($join, $condition, $ignoredKeys);
+            } else {
+
+                $method = "apply{$condition['type']}Condition";
+                $this->$method($join, $condition);
+            }
         }
+    }
 
-        array_multisort(array_column($counted, 'count'), SORT_DESC, $counted);
+    /**
+     * Apply relationship conditions
+     *
+     * @param $join
+     * @param $condition
+     */
+    public function applyBasicCondition($join, $condition)
+    {
+        $join->where($condition['column'], $condition['operator'], $condition['value']);
+    }
 
-        $sorted = [];
+    public function applyNullCondition($join, $condition)
+    {
+        $join->whereNull($condition['column']);
+    }
 
-        foreach ($counted as $count) {
-            array_push($sorted, $searches[$count['index']]);
+    public function applyNotNullCondition($join, $condition)
+    {
+        $join->whereNotNull($condition['column']);
+    }
+
+    public function applyNestedCondition($join, $condition, $ignoredKeys)
+    {
+        foreach ($condition['query']->wheres as $condition) {
+
+            if (! in_array($condition['type'], ['Basic', 'Null', 'NotNull', 'Nested'])) {
+                continue;
+            }
+
+            if (in_array($condition['type'], ['Null', 'NotNull']) && in_array($condition['column'], $ignoredKeys)) {
+                continue;
+            }
+
+            $method = "apply{$condition['type']}Condition";
+            $this->$method($join, $condition);
         }
+    }
 
-        return  $sorted;
+    /**
+     * Checks if the relationship model uses soft deletes.
+     */
+    public function usesSoftDeletes()
+    {
+        return in_array(SoftDeletes::class, class_uses_recursive($model));
     }
 
     /**
      * Check if query has Join
      *
-     * @param $tableJoins
      * @param $tableName
-     * @return array
      */
-    private function isJoined($tableJoins, $tableName) {
+    private function relationshipIsAlreadyJoined(Builder $query, string $tableName)
+    {
+        $tableJoins = collect($query->getQuery()->joins)->pluck('table');
 
-        $newJoins = $tableJoins->map(function ($join) {
+        foreach($tableJoins as $join) {
 
             if (str_contains($join, ' as ')) {
+
                 $explode = explode(' as ', $join);
                 $join = $explode[0];
             }
 
-            return $join;
+            if ($join == $tableName) {
+                return true;
+            }
 
-        });
+        };
 
-        if ($newJoins->contains($tableName)) {
-            return [
-                true,
-                $newJoins->unique()
-            ];
-        }
+        return false;
+    }
 
-        return [
-            false,
-            $newJoins->unique()
-        ];
+    /**
+     * Check if query has Join
+     *
+     * @param $tableName
+     */
+    private function getTableOrAliasForModel(Builder $query, string $tableName)
+    {
+        $tableJoins = collect($query->getQuery()->joins)->pluck('table');
+
+        $alias = null;
+
+        foreach($tableJoins as $join) {
+
+            if (str_contains($join, ' as ')) {
+
+                $explode = explode(' as ', $join);
+                $join = $explode[0];
+                $alias = $explode[1];
+
+                if ($join == $tableName) {
+                    return $alias;
+                }
+            }
+
+            if ($join == $tableName) {
+                return $tableName;
+            }
+        };
+
+        return false;
     }
 
     /**
@@ -168,11 +435,77 @@ trait HasSearch
 
             $prefix =  strtoupper(substr($tableName, 0, 1));
 
-            $column = "'".$prefix."'".', '.$tableName.'.'.$searchColumn;
+            $column = "CONCAT('".$prefix."'".', '.$tableName.'.'.$searchColumn.")";
         }
 
         return $column;
     }
 
+    /**
+     * Sort Searches
+     *
+     * @param $searches
+     * @return array
+     */
+    private function buildSearchablesArray() {
+
+        $searchableRelations = [];
+
+        sort($this->search);
+
+        foreach ($this->search as $search) {
+
+            $relation = $this->getSearchRelation($search);
+
+            if (!in_array($relation, $searchableRelations)) {
+                array_push($searchableRelations, $relation);
+            }
+
+        }
+
+        $summaryArray = [];
+
+        foreach ($searchableRelations as $item) {
+
+            if (!$item['relation']) {
+
+                $parent = new self;
+
+                $item['relation'] = $parent->getTable();
+            }
+
+            if (!isset($summaryArray[$item['relation']])) {
+
+                $summaryArray[$item['relation']] = [$item['column']];
+            } else {
+
+                array_push($summaryArray[$item['relation']], $item['column']);
+            }
+        }
+
+        foreach ($summaryArray as $key => $value) {
+
+            array_unique($value);
+        }
+
+        return $summaryArray;
+    }
+
+    /**
+     * Sort Searches
+     *
+     * @param $searches
+     * @return array
+     */
+    private function getSearchRelation(string $item) {
+
+        $searchables = explode('.', $item);
+        $searchColumn = array_pop($searchables);
+
+        return [
+            'column' => $searchColumn,
+            'relation' => implode('.', $searchables)
+        ];
+    }
 }
 
