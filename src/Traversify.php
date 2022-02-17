@@ -7,12 +7,13 @@ use Traversify\Traits\HasRange;
 use Traversify\Traits\HasSearch;
 use Traversify\Traits\HasFilters;
 use Traversify\Traits\HasAutoload;
+use Traversify\Traits\HasLoadCount;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 trait Traversify
 {
-    use HasFilters, HasRange, HasSearch, HasSort, HasAutoload;
+    use HasFilters, HasRange, HasSearch, HasSort, HasAutoload, HasLoadCount;
 
     /**
      * All-in-one solution to create indexed endpoints fast
@@ -65,6 +66,12 @@ trait Traversify
             is_array($request->autoload)) {
 
             $query->autoload($request->autoload);
+        }
+
+        if( $request->has('loadCount') &&
+            is_array($request->loadCount)) {
+
+            $query->loadCount($request->loadCount);
         }
 
         return $query;

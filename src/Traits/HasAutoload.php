@@ -2,8 +2,6 @@
 namespace Traversify\Traits;
 
 use Exception;
-use RuntimeException;
-use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Builder;
 
 trait HasAutoload
