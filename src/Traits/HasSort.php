@@ -2,9 +2,8 @@
 namespace Traversify\Traits;
 
 use Exception;
-use Illuminate\Support\Str;
-use RuntimeException;
 use InvalidArgumentException;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 
 trait HasSort
@@ -18,9 +17,8 @@ trait HasSort
      *
      * @param Builder $query
      * @param array $sort
-     * @return void
-     * @throws RuntimeException
-     * @throws InvalidArgumentException
+     * @return Builder|void
+     * @throws Exception
      */
     public function scopeSort(Builder $query, Array $sort = [])
     {
@@ -32,6 +30,10 @@ trait HasSort
             return;
         }
 
+        if (is_null($query->getSelect())) {
+            $query->select(sprintf('%s.*', $query->getModel()->getTable()));
+        }
+
         foreach($sorts as $sortable) {
 
             if (in_array($sortable, array_keys($sort)) && in_array(strtoupper($sort[$sortable]), ['ASC', 'DESC'])) {
@@ -39,48 +41,55 @@ trait HasSort
                 $this->createSortQuery($query, $sortable, $sort);
             }
         }
+
+        return $query;
     }
 
     /**
      *
      * @param Builder $query
-     * @param mixed $sortable
+     * @param String $sortable
      * @param mixed $sort
      * @return void
      * @throws InvalidArgumentException
      */
-    public function createSortQuery(Builder $query, array $sortable, array $sort)
+    public function createSortQuery(Builder $query, String $sortable, Array $sort)
     {
         $sortables = explode('.', $sortable);
-
         $sortColumn = array_pop($sortables);
 
-        $model = new self;
+        $motherOfAllRelationsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllRelationsTable;
+        $currentModel = new self;
 
-        foreach($sortables as $relationship) {
-            $model = $model->$relationship()->getRelated();
+        if (count($sortables)) {
+
+            foreach ($sortables as $index => $relationName) {
+
+                if ($relationName != $motherOfAllRelationsTable) {
+                    $relation = $currentModel->{$relationName}();
+                    $currentModel = $relation->getRelated();
+                    $tableName = $currentModel->getTable();
+
+                    $alias = null;
+
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+                        if ($tableName == $motherOfAllRelationsTable) {
+                            $alias = 'A' . time();
+                        }
+
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                    }
+
+                    if (array_key_last($sortables) == $index) {
+                        $lastRelationTable = $alias ?? $tableName;
+                    }
+                }
+            }
         }
 
-        $keyName = $model->getKeyName();
-
-        $tableName = $model->getTable();
-
-        if (count($sortables) && !$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-            $tableName = count($sortables) === 1 ? strtolower($sortables[0]) : $tableName;
-
-            $this->performJoinForEloquent($query, $relation);
-            $query->performJoinForEloquent(implode('.', $sortables), $tableName);
-        }
-
-        $sortColumnAlias = "sort_column_${tableName}_${sortColumn}";
-
-        if(!$query->getQuery()->columns) {
-            $query->select($this->getTable() . '.*');
-        }
-
-        $query->selectRaw("CONCAT($tableName.$sortColumn, ';',$tableName.$keyName) as $sortColumnAlias");
-
-        $query->orderBy($sortColumnAlias, $sort[$sortable]);
+        return $query->orderBy($lastRelationTable.$sortColumn, $sort[$sortable]);
     }
 }

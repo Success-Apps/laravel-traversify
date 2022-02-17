@@ -33,11 +33,9 @@ trait HasFilters
 
             if(in_array($filterable, array_keys($filter))) {
 
-                $filterables = explode('.', $filterable);
-
                 $value = is_array($filter[$filterable]) ? $filter[$filterable] : [$filter[$filterable]];
 
-                $this->createFilterQuery($query, $filterables, $value);
+                $this->createFilterQuery($query, $filterable, $value);
             }
         }
     }
@@ -52,25 +50,43 @@ trait HasFilters
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    private function createFilterQuery(Builder $query, Array $filterable, Array $value)
+    private function createFilterQuery(Builder $query, String $filterable, Array $value)
     {
+        $filterables = explode('.', $filterable);
         $filterColumn = array_pop($filterable);
 
-        if (count($filterable)) {
+        $motherOfAllRelationsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllRelationsTable;
+        $currentModel = new self;
 
-            $query->performJoinForEloquent(implode('.',$filterable));
+        if (count($filterables)) {
 
-            $relationshipTable = array_pop($filterable);
+            foreach ($filterables as $index => $relationName) {
 
-            $tableName = $this->$relationshipTable()->getRelated()->getTable();
+                if ($relationName != $motherOfAllRelationsTable) {
+                    $relation = $currentModel->{$relationName}();
+                    $currentModel = $relation->getRelated();
+                    $tableName = $currentModel->getTable();
 
-            $query->whereIn("$tableName.$filterColumn", $value);
+                    $alias = null;
 
-        } else {
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+                        if ($tableName == $motherOfAllRelationsTable) {
+                            $alias = 'A' . time();
+                        }
 
-            $tableName = $this->getTable();
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                    }
 
-            $query->whereIn("$tableName.$filterColumn", $value);
+                    if (array_key_last($filterables) == $index) {
+                        $lastRelationTable = $alias ?? $tableName;
+                    }
+                }
+            }
         }
+
+        return $query->whereIn("$lastRelationTable.$filterColumn", $value);
     }
 }

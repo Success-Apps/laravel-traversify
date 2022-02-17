@@ -50,7 +50,6 @@ trait HasSearch
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
         }
 
-        $columns = [];
         $columnList = [];
 
         $motherOfAllRelationsTable = (new self)->getTable();
@@ -63,7 +62,6 @@ trait HasSearch
 
             $relationsSplit = explode('.', $relations);
 
-            $parentModel = new self;
             $currentModel = new self;
 
             foreach ($relationsSplit as $index => $relationName) {
@@ -92,8 +90,6 @@ trait HasSearch
                     if (array_key_last($relationsSplit) == $index) {
                         $lastRelationTable = $alias ?? $tableName;
                     }
-
-                    $parentModel = $currentModel;
                 }
             }
 
@@ -105,9 +101,9 @@ trait HasSearch
             }
         }
 
-        $columns = implode(', ', $columnList);
+        $searchColumns = implode(', ', $columnList);
 
-        return $query->whereRaw("CONCAT_WS(' ', {$columns}) {$this->like} ?", "%{$keyword}%");
+        return $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
     }
 
     /**

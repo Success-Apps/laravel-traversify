@@ -33,34 +33,56 @@ trait HasRange
 
             if(in_array($rangeable, array_keys($range))) {
 
-                $rangeables = explode('.', $rangeable);
-
-                $this->createRangeQuery($query, $rangeables, $range[$rangeable]);
+                $this->createRangeQuery($query, $rangeable, $range[$rangeable]);
             }
         }
     }
 
-    private function createRangeQuery(Builder $query, Array $rangeables, Array $value)
+    /**
+     * Create Range Query
+     *
+     * @param Builder $query
+     * @param String $rangeable
+     * @param array $value
+     * @return mixed
+     */
+    private function createRangeQuery(Builder $query, String $rangeable, Array $value)
     {
+        $rangeables = explode('.', $rangeable);
         $rangeColumn = array_pop($rangeables);
 
-        if (count($rangeables) >= 1) {
+        $motherOfAllRelationsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllRelationsTable;
+        $currentModel = new self;
 
-            $query->performJoinForEloquent(implode('.', $rangeables));
+        if (count($rangeables)) {
 
-            $relationshipTable = array_pop($rangeables);
+            foreach ($rangeables as $index => $relationName) {
 
-            $tableName = $this->$relationshipTable()->getRelated()->getTable();
+                if ($relationName != $motherOfAllRelationsTable) {
+                    $relation = $currentModel->{$relationName}();
+                    $currentModel = $relation->getRelated();
+                    $tableName = $currentModel->getTable();
 
-            return $query->whereBetween("$tableName.$rangeColumn", $value);
+                    $alias = null;
 
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+                        if ($tableName == $motherOfAllRelationsTable) {
+                            $alias = 'A' . time();
+                        }
+
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                    }
+
+                    if (array_key_last($rangeables) == $index) {
+                        $lastRelationTable = $alias ?? $tableName;
+                    }
+                }
+            }
         }
 
-        else {
-
-            $tableName = $this->getTable();
-
-            return $query->whereBetween("$tableName.$rangeColumn", $value);
-        }
+        return $query->whereBetween("$lastRelationTable.$rangeColumn", $value);
     }
 }
