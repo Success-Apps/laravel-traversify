@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 trait HasFilters
 {
+    use HasLeftJoin;
+
     /**
      * Initialize filters
      *
@@ -56,7 +58,7 @@ trait HasFilters
 
         if (count($filterable)) {
 
-            $query->leftJoinRelationship(implode('.',$filterable));
+            $query->performJoinForEloquent(implode('.',$filterable));
 
             $relationshipTable = array_pop($filterable);
 

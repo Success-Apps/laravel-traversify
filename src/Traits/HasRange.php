@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 trait HasRange
 {
+    use HasLeftJoin;
+
     /**
      * Initialize ranges
      *
@@ -44,7 +46,7 @@ trait HasRange
 
         if (count($rangeables) >= 1) {
 
-            $query->leftJoinRelationship(implode('.', $rangeables));
+            $query->performJoinForEloquent(implode('.', $rangeables));
 
             $relationshipTable = array_pop($rangeables);
 

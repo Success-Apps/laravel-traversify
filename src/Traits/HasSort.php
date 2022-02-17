@@ -2,14 +2,14 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Support\Str;
 use RuntimeException;
 use InvalidArgumentException;
-use Kirschbaum\PowerJoins\PowerJoins;
 use Illuminate\Database\Eloquent\Builder;
 
 trait HasSort
 {
-    use PowerJoins;
+    use HasLeftJoin;
 
     private $joined = [];
 
@@ -36,9 +36,7 @@ trait HasSort
 
             if (in_array($sortable, array_keys($sort)) && in_array(strtoupper($sort[$sortable]), ['ASC', 'DESC'])) {
 
-                $sortables = explode('.', $sortable);
-
-                $this->createPowerJoinSortQuery($query, $sortables, $sort);
+                $this->createSortQuery($query, $sortable, $sort);
             }
         }
     }
@@ -51,13 +49,11 @@ trait HasSort
      * @return void
      * @throws InvalidArgumentException
      */
-    public function createPowerJoinSortQuery(Builder $query, array $sortables, array $sort)
+    public function createSortQuery(Builder $query, array $sortable, array $sort)
     {
-        $sortable = implode('.', $sortables);
+        $sortables = explode('.', $sortable);
 
         $sortColumn = array_pop($sortables);
-
-        $keyName = $this->getKeyName();
 
         $model = new self;
 
@@ -69,11 +65,12 @@ trait HasSort
 
         $tableName = $model->getTable();
 
-        if (count($sortables) && !collect($query->getQuery()->joins)->pluck('table')->contains($tableName)) {
+        if (count($sortables) && !$this->relationshipIsAlreadyJoined($query, $tableName)) {
 
             $tableName = count($sortables) === 1 ? strtolower($sortables[0]) : $tableName;
 
-            $query->leftJoinRelationship(implode('.', $sortables), $tableName);
+            $this->performJoinForEloquent($query, $relation);
+            $query->performJoinForEloquent(implode('.', $sortables), $tableName);
         }
 
         $sortColumnAlias = "sort_column_${tableName}_${sortColumn}";
