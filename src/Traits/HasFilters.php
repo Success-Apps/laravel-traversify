@@ -19,7 +19,7 @@ trait HasFilters
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    public function scopeFilter(Builder $query, Array $filter = [])
+    public function scopeFilter(Builder $query, array $filter = [])
     {
         if (!$filters = $this->filters) {
             throw new Exception('No column configured to be filtered');
@@ -44,13 +44,13 @@ trait HasFilters
      * Generate filter query
      *
      * @param Builder $query
-     * @param array $filterables
-     * @param string $value
+     * @param string $filterable
+     * @param array $value
      * @return void
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    private function createFilterQuery(Builder $query, String $filterable, Array $value)
+    private function createFilterQuery(Builder $query, string $filterable, array $value)
     {
         $filterables = explode('.', $filterable);
         $filterColumn = array_pop($filterable);

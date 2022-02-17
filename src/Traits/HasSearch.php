@@ -25,10 +25,10 @@ trait HasSearch
      * Initialize search query
      *
      * @param Builder $query
-     * @param String $keyword
+     * @param string $keyword
      * @throws Exception
      */
-    public function scopeSearch(Builder $query, String $keyword = '')
+    public function scopeSearch(Builder $query, string $keyword = '')
     {
         if (!$searches = $this->search) {
             throw new Exception('No column configured to be searched');
@@ -44,7 +44,7 @@ trait HasSearch
             $this->like = 'ILIKE';
         }
 
-        $searchableList = $this->buildModelFiltersArray('search');
+        $searchableList = $this->buildModelFiltersArray();
 
         if (is_null($query->getSelect())) {
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
@@ -109,11 +109,11 @@ trait HasSearch
     /**
      * Setup ID Search
      *
-     * @param $tableName
-     * @param $searchColumn
+     * @param string $tableName
+     * @param string $searchColumn
      * @return string
      */
-    private function prepSearchId($tableName, $searchColumn) {
+    private function prepSearchId(string $tableName, string $searchColumn) {
 
         $column = $tableName.'.'.$searchColumn;
 
@@ -125,6 +125,73 @@ trait HasSearch
         }
 
         return $column;
+    }
+
+    /**
+     * Sort Searches
+     *
+     * @param $searches
+     * @return array
+     */
+    private function buildModelFiltersArray()
+    {
+        $filterRelations = [];
+
+        sort($this->search);
+
+        foreach ($this->search as $item) {
+
+            $relation = $this->getItemRelation($item);
+
+            if (!in_array($relation, $filterRelations)) {
+                array_push($filterRelations, $relation);
+            }
+        }
+
+        $summaryArray = [];
+
+        foreach ($filterRelations as $item) {
+
+            if (!$item['relation']) {
+
+                $parent = new self;
+
+                $item['relation'] = $parent->getTable();
+            }
+
+            if (!isset($summaryArray[$item['relation']])) {
+
+                $summaryArray[$item['relation']] = [$item['column']];
+            } else {
+
+                array_push($summaryArray[$item['relation']], $item['column']);
+            }
+        }
+
+        foreach ($summaryArray as $key => $value) {
+
+            array_unique($value);
+        }
+
+        return $summaryArray;
+    }
+
+    /**
+     * Sort Searches
+     *
+     * @param string $item
+     * @return array
+     */
+    private function getItemRelation(string $item)
+    {
+
+        $itemParts = explode('.', $item);
+        $searchColumn = array_pop($itemParts);
+
+        return [
+            'column' => $searchColumn,
+            'relation' => implode('.', $itemParts)
+        ];
     }
 }
 

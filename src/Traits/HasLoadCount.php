@@ -6,7 +6,14 @@ use Illuminate\Database\Eloquent\Builder;
 
 trait HasLoadCount
 {
-    public function scopeLoadCount(Builder $query, Array $load = [])
+    /**
+     * Load Counts
+     *
+     * @param Builder $query
+     * @param array $load
+     * @throws Exception
+     */
+    public function scopeLoadCount(Builder $query, array $load = [])
     {
         if (!$loadCounts = $this->loadCount) {
             throw new Exception('No column configured to be load-counted');

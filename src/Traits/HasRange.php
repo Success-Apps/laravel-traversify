@@ -19,7 +19,7 @@ trait HasRange
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    public function scopeRange(Builder $query, Array $range = [])
+    public function scopeRange(Builder $query, array $range = [])
     {
         if (!$ranges = $this->range) {
             throw new Exception('No column configured to be ranged');
@@ -42,11 +42,11 @@ trait HasRange
      * Create Range Query
      *
      * @param Builder $query
-     * @param String $rangeable
+     * @param string $rangeable
      * @param array $value
      * @return mixed
      */
-    private function createRangeQuery(Builder $query, String $rangeable, Array $value)
+    private function createRangeQuery(Builder $query, string $rangeable, array $value)
     {
         $rangeables = explode('.', $rangeable);
         $rangeColumn = array_pop($rangeables);

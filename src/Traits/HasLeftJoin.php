@@ -15,19 +15,19 @@ trait HasLeftJoin
 
         if ($relation instanceof BelongsToMany) {
 
-            $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
+            return $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
         } elseif ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany) {
 
-            $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
+            return $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
         } elseif ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany) {
 
-            $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
+            return $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
         } elseif ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
 
-            $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
+            return $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
         } elseif ($relation instanceof BelongsTo) {
 
-            $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
+            return $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
         };
     }
 
@@ -46,7 +46,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias) {
+        return $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias) {
 
             $join->on(
 
@@ -98,7 +98,7 @@ trait HasLeftJoin
             }
         });
 
-        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $tableOrAlias) {
+        return $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $tableOrAlias) {
 
             $join->on(
 
@@ -132,7 +132,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias, $parentTable) {
+        return $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias, $parentTable) {
 
             $join->on(
 
@@ -167,7 +167,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable, $tableOrAlias) {
+        return $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable, $tableOrAlias) {
 
             $join->on(
 
@@ -220,7 +220,7 @@ trait HasLeftJoin
             }
         });
 
-        $query->{$joinType}($tableOrAlias, function ($join) use ($relation, $throughTable, $farTable, $tableOrAlias) {
+        return $query->{$joinType}($tableOrAlias, function ($join) use ($relation, $throughTable, $farTable, $tableOrAlias) {
 
             $join->on(
 
@@ -342,7 +342,7 @@ trait HasLeftJoin
     /**
      * Checks if the relationship model uses soft deletes.
      */
-    public function usesSoftDeletes()
+    public function usesSoftDeletes($model)
     {
         return in_array(SoftDeletes::class, class_uses_recursive($model));
     }
@@ -350,13 +350,17 @@ trait HasLeftJoin
     /**
      * Check if query has Join
      *
-     * @param $tableName
+     * @param Builder $query
+     * @param string $tableName
+     * @return bool
      */
     private function relationshipIsAlreadyJoined(Builder $query, string $tableName)
     {
         $tableJoins = collect($query->getQuery()->joins)->pluck('table');
 
         foreach($tableJoins as $join) {
+
+            $join = strtolower($join);
 
             if (str_contains($join, ' as ')) {
 
@@ -376,7 +380,9 @@ trait HasLeftJoin
     /**
      * Check if query has Join
      *
-     * @param $tableName
+     * @param Builder $query
+     * @param string $tableName
+     * @return false|string
      */
     private function getTableOrAliasForModel(Builder $query, string $tableName)
     {
@@ -385,6 +391,8 @@ trait HasLeftJoin
         $alias = null;
 
         foreach($tableJoins as $join) {
+
+            $join = strtolower($join);
 
             if (str_contains($join, ' as ')) {
 
@@ -403,94 +411,5 @@ trait HasLeftJoin
         };
 
         return false;
-    }
-
-    /**
-     * Sort Searches
-     *
-     * @param $searches
-     * @return array
-     */
-    private function buildModelFiltersArray(String $type)
-    {
-
-        $filterRelations = [];
-        $selectedType = null;
-
-        switch ($type) {
-
-            case 'search':
-
-                sort($this->search);
-                $selectedType = $this->search;
-                break;
-
-            case 'sort':
-
-                sort($this->sort);
-                $selectedType = $this->sort;
-                break;
-
-            case 'range':
-
-                sort($this->range);
-                $selectedType = $this->range;
-                break;
-        }
-
-        foreach ($selectedType as $item) {
-
-            $relation = $this->getItemRelation($item);
-
-            if (!in_array($relation, $filterRelations)) {
-                array_push($filterRelations, $relation);
-            }
-
-        }
-
-        $summaryArray = [];
-
-        foreach ($filterRelations as $item) {
-
-            if (!$item['relation']) {
-
-                $parent = new self;
-
-                $item['relation'] = $parent->getTable();
-            }
-
-            if (!isset($summaryArray[$item['relation']])) {
-
-                $summaryArray[$item['relation']] = [$item['column']];
-            } else {
-
-                array_push($summaryArray[$item['relation']], $item['column']);
-            }
-        }
-
-        foreach ($summaryArray as $key => $value) {
-
-            array_unique($value);
-        }
-
-        return $summaryArray;
-    }
-
-    /**
-     * Sort Searches
-     *
-     * @param String $item
-     * @return array
-     */
-    private function getItemRelation(string $item)
-    {
-
-        $itemParts = explode('.', $item);
-        $searchColumn = array_pop($itemParts);
-
-        return [
-            'column' => $searchColumn,
-            'relation' => implode('.', $itemParts)
-        ];
     }
 }

@@ -20,7 +20,7 @@ trait HasSort
      * @return Builder|void
      * @throws Exception
      */
-    public function scopeSort(Builder $query, Array $sort = [])
+    public function scopeSort(Builder $query, array $sort = [])
     {
         if(!$sorts = $this->sort) {
             throw new Exception("No column configured to be sorted");
@@ -48,12 +48,12 @@ trait HasSort
     /**
      *
      * @param Builder $query
-     * @param String $sortable
+     * @param string $sortable
      * @param mixed $sort
      * @return void
      * @throws InvalidArgumentException
      */
-    public function createSortQuery(Builder $query, String $sortable, Array $sort)
+    public function createSortQuery(Builder $query, string $sortable, array $sort)
     {
         $sortables = explode('.', $sortable);
         $sortColumn = array_pop($sortables);
