@@ -31,47 +31,47 @@ trait Traversify
 
     public static function traverse(Builder $query, $request)
     {
-        if( in_array(SoftDeletes::class, class_uses_recursive(self::class)) &&
+        if (in_array(SoftDeletes::class, class_uses_recursive(self::class)) &&
             $request->has('trashed') &&
             $request->trashed == 1) {
 
             $query->onlyTrashed();
         }
 
-        if( $request->has('search') &&
+        if ($request->has('search') &&
             is_string($request->search)) {
 
             $query->search($request->search);
         }
 
-        if( $request->has('filter') &&
+        if ($request->has('filter') &&
             is_array($request->filter)) {
 
             $query->filter($request->filter);
         }
 
-        if( $request->has('sort') &&
-            is_array($request->sort)) {
-
-            $query->sort($request->sort);
-        }
-
-        if( $request->has('range') &&
+        if ($request->has('range') &&
             is_array($request->range)) {
 
             $query->range($request->range);
         }
 
-        if( $request->has('autoload') &&
+        if ($request->has('autoload') &&
             is_array($request->autoload)) {
 
             $query->autoload($request->autoload);
         }
 
-        if( $request->has('loadCount') &&
+        if ($request->has('loadCount') &&
             is_array($request->loadCount)) {
 
             $query->loadCount($request->loadCount);
+        }
+
+        if ($request->has('sort') &&
+            is_array($request->sort)) {
+
+            $query->sort($request->sort);
         }
 
         return $query;

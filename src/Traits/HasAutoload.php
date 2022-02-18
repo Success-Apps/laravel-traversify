@@ -3,6 +3,7 @@ namespace Traversify\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 trait HasAutoload
 {
@@ -16,12 +17,18 @@ trait HasAutoload
             return;
         }
 
+        $clean = [];
+
         foreach($autoloads as $autoload) {
 
-            if(in_array($autoload, array_values($load))) {
+            if (in_array($autoload, array_values($load))) {
 
-                $query->with($autoload);
+                $clean[] = $autoload;
             }
+        }
+
+        if (!empty($clean)) {
+            $query->with($clean);
         }
     }
 }

@@ -2,14 +2,6 @@
 namespace Traversify\Traits;
 
 use Exception;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Database\Eloquent\Relations\HasOneThrough;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -40,7 +32,7 @@ trait HasSearch
 
         $key = $this->connection ?: config('database.default');
 
-        if(config('database.connections.' . $key . '.driver') == 'pgsql') {
+        if (config('database.connections.' . $key . '.driver') == 'pgsql') {
             $this->like = 'ILIKE';
         }
 
@@ -103,7 +95,7 @@ trait HasSearch
 
         $searchColumns = implode(', ', $columnList);
 
-        return $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
+        $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
     }
 
     /**

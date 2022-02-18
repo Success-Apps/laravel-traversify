@@ -31,7 +31,7 @@ trait HasRange
 
         foreach($ranges as $rangeable) {
 
-            if(in_array($rangeable, array_keys($range))) {
+            if (in_array($rangeable, array_keys($range))) {
 
                 $this->createRangeQuery($query, $rangeable, $range[$rangeable]);
             }
@@ -83,6 +83,6 @@ trait HasRange
             }
         }
 
-        return $query->whereBetween("$lastRelationTable.$rangeColumn", $value);
+        $query->whereBetween($lastRelationTable.'.'.$rangeColumn, $value);
     }
 }

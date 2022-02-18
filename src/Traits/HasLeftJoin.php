@@ -3,6 +3,15 @@ namespace Traversify\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 trait HasLeftJoin
 {
@@ -15,19 +24,22 @@ trait HasLeftJoin
 
         if ($relation instanceof BelongsToMany) {
 
-            return $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
-        } elseif ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany) {
+            $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany) {
 
-            return $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
-        } elseif ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany) {
+            $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany) {
 
-            return $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
-        } elseif ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
+            $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
 
-            return $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
-        } elseif ($relation instanceof BelongsTo) {
+            $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof BelongsTo) {
 
-            return $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
+            $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
+        } else {
+            Log::info("No Relationship Class found => ".$relation::class);
+            throw new Exception("No Relationship Class found => ".$relation::class);
         };
     }
 
@@ -46,7 +58,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        return $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias) {
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias) {
 
             $join->on(
 
@@ -98,7 +110,7 @@ trait HasLeftJoin
             }
         });
 
-        return $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $tableOrAlias) {
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $tableOrAlias) {
 
             $join->on(
 
@@ -132,7 +144,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        return $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias, $parentTable) {
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias, $parentTable) {
 
             $join->on(
 
@@ -167,7 +179,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        return $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable, $tableOrAlias) {
+        $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable, $tableOrAlias) {
 
             $join->on(
 
@@ -220,7 +232,7 @@ trait HasLeftJoin
             }
         });
 
-        return $query->{$joinType}($tableOrAlias, function ($join) use ($relation, $throughTable, $farTable, $tableOrAlias) {
+        $query->{$joinType}($tableOrAlias, function ($join) use ($relation, $throughTable, $farTable, $tableOrAlias) {
 
             $join->on(
 
@@ -287,6 +299,7 @@ trait HasLeftJoin
                 $column = "{$alias}.{$parts[0]}";
             }
         }
+
         $join->where($column, $condition['operator'], $condition['value']);
     }
 

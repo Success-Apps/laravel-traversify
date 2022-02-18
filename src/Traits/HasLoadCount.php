@@ -23,12 +23,18 @@ trait HasLoadCount
             return;
         }
 
+        $clean = [];
+
         foreach($loadCounts as $count) {
 
-            if(in_array($count, array_values($load))) {
+            if (in_array($count, array_values($load))) {
 
-                $query->withCount($count);
+                $clean[] = $count;
             }
+        }
+
+        if (!empty($clean)) {
+            $query->withCount($clean);
         }
     }
 }

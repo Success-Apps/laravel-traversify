@@ -2,6 +2,7 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Builder;
@@ -53,7 +54,7 @@ trait HasFilters
     private function createFilterQuery(Builder $query, string $filterable, array $value)
     {
         $filterables = explode('.', $filterable);
-        $filterColumn = array_pop($filterable);
+        $filterColumn = array_pop($filterables);
 
         $motherOfAllRelationsTable = (new self)->getTable();
         $lastRelationTable = $motherOfAllRelationsTable;
@@ -87,6 +88,6 @@ trait HasFilters
             }
         }
 
-        return $query->whereIn("$lastRelationTable.$filterColumn", $value);
+        $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
     }
 }

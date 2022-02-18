@@ -2,6 +2,7 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,11 +23,11 @@ trait HasSort
      */
     public function scopeSort(Builder $query, array $sort = [])
     {
-        if(!$sorts = $this->sort) {
+        if (!$sorts = $this->sort) {
             throw new Exception("No column configured to be sorted");
         }
 
-        if(empty($sort)) {
+        if (empty($sort)) {
             return;
         }
 
@@ -41,8 +42,6 @@ trait HasSort
                 $this->createSortQuery($query, $sortable, $sort);
             }
         }
-
-        return $query;
     }
 
     /**
@@ -67,6 +66,7 @@ trait HasSort
             foreach ($sortables as $index => $relationName) {
 
                 if ($relationName != $motherOfAllRelationsTable) {
+
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
@@ -74,12 +74,14 @@ trait HasSort
                     $alias = null;
 
                     if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+
                         if ($tableName == $motherOfAllRelationsTable) {
                             $alias = 'A' . time();
                         }
 
                         $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
+
                         $tableName = $this->getTableOrAliasForModel($query, $tableName);
                     }
 
@@ -90,6 +92,6 @@ trait HasSort
             }
         }
 
-        return $query->orderBy($lastRelationTable.$sortColumn, $sort[$sortable]);
+        $query->orderBy($lastRelationTable.'.'.$sortColumn, $sort[$sortable]);
     }
 }
