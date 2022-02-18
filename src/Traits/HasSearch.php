@@ -38,7 +38,7 @@ trait HasSearch
 
         $searchableList = $this->buildModelFiltersArray();
 
-        if (is_null($query->getSelect())) {
+        if (is_null($query->getQuery()->columns)) {
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
         }
 

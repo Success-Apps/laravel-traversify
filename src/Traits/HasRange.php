@@ -29,6 +29,10 @@ trait HasRange
             return;
         }
 
+        if (is_null($query->getQuery()->columns)) {
+            $query->select(sprintf('%s.*', $query->getModel()->getTable()));
+        }
+
         foreach($ranges as $rangeable) {
 
             if (in_array($rangeable, array_keys($range))) {
