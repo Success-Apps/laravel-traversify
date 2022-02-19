@@ -70,7 +70,7 @@ trait HasLeftJoin
             $ignoredKeys = [$relation->getQualifiedOwnerKeyName(), $relation->getQualifiedForeignKeyName()];
             $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 
-            if ($relation->usesSoftDeletes($relation->getModel())) {
+            if ($this->usesSoftDeletes($relation->getModel())) {
 
                 $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
             }
@@ -104,7 +104,7 @@ trait HasLeftJoin
             $ignoredKeys = [$relation->getQualifiedForeignPivotKeyName(), $relation->getQualifiedParentKeyName()];
             $this->applyExtraConditions($relation, $join, $ignoredKeys);
 
-            if ($relation->usesSoftDeletes($relation->getRelated())) {
+            if ($this->usesSoftDeletes($relation->getRelated())) {
 
                 $join->whereNull("{$pivotTable}.{$relation->getRelated()->getDeletedAtColumn()}");
             }
@@ -122,7 +122,7 @@ trait HasLeftJoin
 //            $ignoredKeys = ["{$relationTable}.{$relation->getModel()->getKeyName()}", $relation->getQualifiedRelatedPivotKeyName()];
 //            $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 //
-//            if ($relation->usesSoftDeletes($relation->getModel())) {
+//            if ($this->usesSoftDeletes($relation->getModel())) {
 //
 //                $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
 //            }
@@ -156,7 +156,7 @@ trait HasLeftJoin
             $ignoredKeys = [$relation->getQualifiedForeignKeyName(), "{$parentTable}.{$relation->getLocalKeyName()}"];
             $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 
-            if ($relation->usesSoftDeletes($relation->getModel())) {
+            if ($this->usesSoftDeletes($relation->getModel())) {
 
                 $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
             }
@@ -191,7 +191,7 @@ trait HasLeftJoin
             $ignoredKeys = ["{$parentTable}.{$relation->getLocalKeyName()}", $relation->getQualifiedForeignKeyName()];
             $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 
-            if ($relation->usesSoftDeletes($relation->getRelated())) {
+            if ($this->usesSoftDeletes($relation->getRelated())) {
 
                 $join->whereNull("{$relationTable}.{$relation->getRelated()->getDeletedAtColumn()}");
             }
@@ -226,7 +226,7 @@ trait HasLeftJoin
             $ignoredKeys = ["{$throughTable}.{$relation->getFirstKeyName()}", $relation->getQualifiedLocalKeyName(), "{$farTable}.{$relation->getForeignKeyName()}", "{$throughTable}.{$relation->getSecondLocalKeyName()}"];
             $this->applyExtraConditions($relation, $join, $ignoredKeys);
 
-            if ($relation->usesSoftDeletes($relation->getParent())) {
+            if ($this->usesSoftDeletes($relation->getParent())) {
 
                 $join->whereNull("{$throughTable}.{$relation->getParent()->getDeletedAtColumn()}");
             }
@@ -244,7 +244,7 @@ trait HasLeftJoin
 //            $ignoredKeys = ["{$throughTable}.{$relation->getForeignKeyName()}", $relation->getQualifiedLocalKeyName(), "{$farTable}.{$relation->getForeignKeyName()}", "{$throughTable}.{$relation->getSecondLocalKeyName()}"];
 //            $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 //
-//            if ($relation->usesSoftDeletes($relation->getModel())) {
+//            if ($this->usesSoftDeletes($relation->getModel())) {
 //
 //                $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
 //            }
