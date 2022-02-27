@@ -2,6 +2,7 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -44,13 +45,15 @@ trait HasSearch
 
         $columnList = [];
 
-        $motherOfAllRelationsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllRelationsTable;
+        $motherOfAllModels = (new self);
+        $motherOfAllModelsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllModelsTable;
         $tableName = null;
 
         foreach($searchableList as $relations => $columns) {
 
-            $lastRelationTable = $motherOfAllRelationsTable;
+            $lastModel = $motherOfAllModels;
+            $lastRelationTable = $motherOfAllModelsTable;
 
             $relationsSplit = explode('.', $relations);
 
@@ -58,7 +61,7 @@ trait HasSearch
 
             foreach ($relationsSplit as $index => $relationName) {
 
-                if ($relationName != $motherOfAllRelationsTable) {
+                if ($relationName != $motherOfAllModelsTable) {
 
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
@@ -68,7 +71,7 @@ trait HasSearch
 
                     if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
 
-                        if ($tableName == $motherOfAllRelationsTable) {
+                        if ($tableName == $motherOfAllModelsTable) {
 
                             $alias = 'A'.time();
                         }
@@ -81,13 +84,14 @@ trait HasSearch
 
                     if (array_key_last($relationsSplit) == $index) {
                         $lastRelationTable = $alias ?? $tableName;
+                        $lastModel = $currentModel;
                     }
                 }
             }
 
             foreach ($columns as $searchColumn) {
 
-                $currentColumn = $this->prepSearchId($lastRelationTable, $searchColumn);
+                $currentColumn = $this->prepSearchId($lastModel, $lastRelationTable, $searchColumn);
 
                 array_push($columnList, $currentColumn);
             }
@@ -105,13 +109,17 @@ trait HasSearch
      * @param string $searchColumn
      * @return string
      */
-    private function prepSearchId(string $tableName, string $searchColumn) {
+    private function prepSearchId($model, string $tableName, string $searchColumn) {
 
         $column = $tableName.'.'.$searchColumn;
 
         if ($searchColumn == 'id') {
 
-            $prefix =  strtoupper(substr($tableName, 0, 1));
+            if (defined($model::class.'::ID_PREFIX')) {
+                $prefix =  strtoupper($model::ID_PREFIX);
+            } else {
+                $prefix =  strtoupper(substr($tableName, 0, 1));
+            }
 
             $column = "CONCAT('".$prefix."'".', '.$tableName.'.'.$searchColumn.")";
         }
