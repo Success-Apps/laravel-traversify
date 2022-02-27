@@ -116,7 +116,7 @@ trait HasSearch
         if ($searchColumn == 'id') {
 
             if (defined($model::class.'::ID_PREFIX')) {
-                $prefix =  strtoupper($model::ID_PREFIX);
+                $prefix =  strtoupper($model::class.'::ID_PREFIX');
             } else {
                 $prefix =  strtoupper(substr($tableName, 0, 1));
             }
