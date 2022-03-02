@@ -23,7 +23,7 @@ trait HasFilters
     public function scopeFilter(Builder $query, array $filter = [])
     {
         if (!$filters = $this->filters) {
-            throw new Exception('No column configured to be filtered');
+            throw new Exception('No column configured to be filtered - ' . $this::class);
         }
 
         if (empty($filter)) {

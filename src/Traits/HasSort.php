@@ -24,7 +24,7 @@ trait HasSort
     public function scopeSort(Builder $query, array $sort = [])
     {
         if (!$sorts = $this->sort) {
-            throw new Exception("No column configured to be sorted");
+            throw new Exception('No column configured to be sorted - ' . $this::class);
         }
 
         if (empty($sort)) {

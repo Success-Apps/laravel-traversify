@@ -22,7 +22,7 @@ trait HasRange
     public function scopeRange(Builder $query, array $range = [])
     {
         if (!$ranges = $this->range) {
-            throw new Exception('No column configured to be ranged');
+            throw new Exception('No column configured to be ranged - ' . $this::class);
         }
 
         if (empty($range)) {
