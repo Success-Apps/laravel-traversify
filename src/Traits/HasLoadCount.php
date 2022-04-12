@@ -3,6 +3,7 @@ namespace Traversify\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 trait HasLoadCount
 {
@@ -26,15 +27,9 @@ trait HasLoadCount
         $clean = [];
 
         foreach($loadCounts as $count) {
-
             if (in_array($count, array_values($load))) {
-
-                $clean[] = $count;
+                $query->withCount($count)->withCasts([Str::snake($count) . '_count' => 'integer']);
             }
-        }
-
-        if (!empty($clean)) {
-            $query->withCount($clean);
         }
     }
 }
