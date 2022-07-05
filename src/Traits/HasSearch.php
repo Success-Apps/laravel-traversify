@@ -121,7 +121,7 @@ trait HasSearch
                 $prefix =  strtoupper(substr($tableName, 0, 1));
             }
 
-            $column = "CONCAT('".$prefix."'".', '.$tableName.'.'.$searchColumn.")";
+            $column = "CONCAT('".$prefix."-'".', '.$tableName.'.'.$searchColumn.")";
         }
 
         return $column;
@@ -169,7 +169,6 @@ trait HasSearch
         }
 
         foreach ($summaryArray as $key => $value) {
-
             array_unique($value);
         }
 
