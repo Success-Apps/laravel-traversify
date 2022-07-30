@@ -144,7 +144,7 @@ trait HasSearch
             $relation = $this->getItemRelation($item);
 
             if (!in_array($relation, $filterRelations)) {
-                $filterRelations[] = $relation;
+                array_push($filterRelations, $relation);
             }
         }
 
@@ -164,8 +164,12 @@ trait HasSearch
                 $summaryArray[$item['relation']] = [$item['column']];
             } else {
 
-                $summaryArray[$item['relation']] = $item['column'];
+                array_push($summaryArray[$item['relation']], $item['column']);
             }
+        }
+
+        foreach ($summaryArray as $key => $value) {
+            $summaryArray[$key] = array_unique($value);
         }
 
         return $summaryArray;
@@ -189,4 +193,3 @@ trait HasSearch
         ];
     }
 }
-
