@@ -67,20 +67,23 @@ trait HasSearch
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
 
-                    $alias = null;
+//                    $alias = null;
+//
+//                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+//
+//                        if ($tableName == $motherOfAllModelsTable) {
+//
+//                            $alias = 'A'.time();
+//                        }
+//
+//                        $this->performJoinForEloquent($query, $relation, $alias);
+//                    } else {
+//
+//                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+//                    }
 
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-                        if ($tableName == $motherOfAllModelsTable) {
-
-                            $alias = 'A'.time();
-                        }
-
-                        $this->performJoinForEloquent($query, $relation, $alias);
-                    } else {
-
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
-                    }
+                    $alias = 'A'.time();
+                    $tableName = $this->getTableOrAliasForModel($query, $tableName);
 
                     if (array_key_last($relationsSplit) == $index) {
                         $lastRelationTable = $alias ?? $tableName;
@@ -144,7 +147,7 @@ trait HasSearch
             $relation = $this->getItemRelation($item);
 
             if (!in_array($relation, $filterRelations)) {
-                array_push($filterRelations, $relation);
+                $filterRelations[] = $relation;
             }
         }
 
@@ -164,15 +167,11 @@ trait HasSearch
                 $summaryArray[$item['relation']] = [$item['column']];
             } else {
 
-                array_push($summaryArray[$item['relation']], $item['column']);
+                $summaryArray[$item['relation']] = $item['column'];
             }
         }
 
-        foreach ($summaryArray as $key => $value) {
-            array_unique($value);
-        }
-
-        return $summaryArray;
+        return array_unique($summaryArray);
     }
 
     /**
