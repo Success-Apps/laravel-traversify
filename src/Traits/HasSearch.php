@@ -164,7 +164,7 @@ trait HasSearch
                 $summaryArray[$item['relation']] = [$item['column']];
             } else {
 
-                $summaryArray[$item['relation']] = $item['column'];
+                array_push($summaryArray[$item['relation']], $item['column']);
             }
         }
 

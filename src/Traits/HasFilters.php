@@ -92,6 +92,11 @@ trait HasFilters
             }
         }
 
+        if ($value == 'false') {
+            $value = false;
+        } else if ($value == 'true') {
+            $value = true;
+        }
         $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
     }
 }
