@@ -72,7 +72,7 @@ trait HasRange
 
                     if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
                         if ($tableName == $motherOfAllRelationsTable) {
-                            $alias = 'A' . time();
+                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
 
                         $this->performJoinForEloquent($query, $relation, $alias);

@@ -73,7 +73,7 @@ trait HasSearch
 
                         if ($tableName == $motherOfAllModelsTable) {
 
-                            $alias = $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
 
                         $this->performJoinForEloquent($query, $relation, $alias);
