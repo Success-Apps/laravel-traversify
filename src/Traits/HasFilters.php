@@ -92,11 +92,26 @@ trait HasFilters
             }
         }
 
-        if ($value == 'false') {
-            $value = false;
-        } else if ($value == 'true') {
-            $value = true;
+        /**
+         * Make True or False
+         */
+        foreach($value as $item) {
+            switch($item) {
+                case 'true':
+                    $item = true;
+                    break;
+                case 'false':
+                    $item = false;
+                    break;
+                default:
+                    break;
+            }
         }
-        $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
+
+        if (count($value) > 1) {
+            $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
+        } else {
+            $query->where($lastRelationTable.'.'.$filterColumn, '=', $value);
+        }
     }
 }
