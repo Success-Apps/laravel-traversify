@@ -171,7 +171,7 @@ trait HasSearch
             }
         }
 
-        return array_unique($summaryArray);
+        return $summaryArray;
     }
 
     /**
