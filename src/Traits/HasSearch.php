@@ -93,7 +93,7 @@ trait HasSearch
 
                 $currentColumn = $this->prepSearchId($lastModel, $lastRelationTable, $searchColumn);
 
-                array_push($columnList, $currentColumn);
+                $columnList[] = $currentColumn;
             }
         }
 
@@ -144,7 +144,7 @@ trait HasSearch
             $relation = $this->getItemRelation($item);
 
             if (!in_array($relation, $filterRelations)) {
-                array_push($filterRelations, $relation);
+                $filterRelations[] =  $relation;
             }
         }
 
@@ -164,7 +164,7 @@ trait HasSearch
                 $summaryArray[$item['relation']] = [$item['column']];
             } else {
 
-                array_push($summaryArray[$item['relation']], $item['column']);
+                $summaryArray[$item['relation']] = $item['column'];
             }
         }
 

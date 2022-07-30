@@ -3,10 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="259d1203-0b1b-4cd2-b97d-8d966942d57e" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Traits/HasFilters.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/HasFilters.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Traits/HasRange.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/HasRange.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Traits/HasSearch.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/HasSearch.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Traits/HasSort.php" beforeDir="false" afterPath="$PROJECT_DIR$/src/Traits/HasSort.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +46,7 @@
       <workItem from="1655097835556" duration="78000" />
       <workItem from="1657004116224" duration="58000" />
       <workItem from="1659155449682" duration="304000" />
-      <workItem from="1659155940617" duration="2405000" />
+      <workItem from="1659155940617" duration="2484000" />
     </task>
     <servers />
   </component>
