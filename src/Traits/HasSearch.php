@@ -67,23 +67,20 @@ trait HasSearch
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
 
-//                    $alias = null;
-//
-//                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-//
-//                        if ($tableName == $motherOfAllModelsTable) {
-//
-//                            $alias = 'A'.time();
-//                        }
-//
-//                        $this->performJoinForEloquent($query, $relation, $alias);
-//                    } else {
-//
-//                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
-//                    }
+                    $alias = null;
 
-                    $alias = 'A'.time();
-                    $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+
+                        if ($tableName == $motherOfAllModelsTable) {
+
+                            $alias = $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                        }
+
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                    }
 
                     if (array_key_last($relationsSplit) == $index) {
                         $lastRelationTable = $alias ?? $tableName;
