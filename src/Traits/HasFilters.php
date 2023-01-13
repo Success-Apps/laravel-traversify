@@ -38,9 +38,9 @@ trait HasFilters
 
             if(in_array($filterable, array_keys($filter))) {
 
-                $value = is_array($filter[$filterable]) ? $filter[$filterable] : [$filter[$filterable]];
+//                $value = is_array($filter[$filterable]) ? $filter[$filterable] : [$filter[$filterable]];
 
-                $this->createFilterQuery($query, $filterable, $value);
+                $this->createFilterQuery($query, $filterable, $filter[$filterable]);
             }
         }
     }
@@ -55,7 +55,7 @@ trait HasFilters
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    private function createFilterQuery(Builder $query, string $filterable, array $value)
+    private function createFilterQuery(Builder $query, string $filterable, mixed $value)
     {
         $filterables = explode('.', $filterable);
         $filterColumn = array_pop($filterables);
@@ -92,26 +92,22 @@ trait HasFilters
             }
         }
 
-        /**
-         * Make True or False
-         */
-        foreach($value as $item) {
-            switch($item) {
-                case 'true':
-                    $item = true;
-                    break;
-                case 'false':
-                    $item = false;
-                    break;
-                default:
-                    break;
-            }
-        }
+        switch (true) {
+            case ($value === '{null}'):
+                $query->whereNull($lastRelationTable.'.'.$filterColumn);
+                break;
 
-        if (count($value) > 1) {
-            $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
-        } else {
-            $query->where($lastRelationTable.'.'.$filterColumn, '=', $value);
+            case ($value === '{!null}'):
+                $query->whereNotNull($lastRelationTable.'.'.$filterColumn);
+                break;
+
+            case (is_array($value)):
+                $query->whereIn($lastRelationTable.'.'.$filterColumn, $value);
+                break;
+
+            default:
+                $query->where($lastRelationTable.'.'.$filterColumn, '=', $value);
+                break;
         }
     }
 }
