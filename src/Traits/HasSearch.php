@@ -112,13 +112,19 @@ trait HasSearch
     private function prepSearchId($model, string $tableName, string $searchColumn) {
 
         $column = $tableName.'.'.$searchColumn;
+        $id = $model->primaryKey ?? 'id';
 
-        if ($searchColumn == 'id') {
+        if ($searchColumn === $id) {
 
             if (defined($model::class.'::ID_PREFIX')) {
                 $prefix =  strtoupper($model::class::ID_PREFIX);
             } else {
-                $prefix =  strtoupper(substr($tableName, 0, 1));
+                $prefix =  strtoupper($tableName[0]);
+            }
+
+            // Resolve to use the ID_COLUMN constant instead of the primary key for searching
+            if (defined($model::class .'::ID_COLUMN')) {
+                $searchColumn = $model::class::ID_COLUMN;
             }
 
             $column = "CONCAT('".$prefix."-'".', '.$tableName.'.'.$searchColumn.")";
