@@ -388,7 +388,7 @@ trait HasLeftJoin
             } else if ($join instanceof Expression) {
                 $expression = $join->getValue($this->getGrammar());
 
-                if (strpos($expression, "from `$tableName`") !== false) {
+                if (str_contains($expression, "from `$tableName`")) {
                     return true;
                 }
             }
@@ -431,7 +431,7 @@ trait HasLeftJoin
             } else if ($join instanceof Expression) {
                 $expression = $join->getValue($this->getGrammar());
 
-                if (strpos($expression, "from `$tableName`") !== false) {
+                if (str_contains($expression, "from `$tableName`")) {
                     return true;
                 }
             }
