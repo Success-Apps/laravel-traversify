@@ -10,7 +10,8 @@ trait HasAutoload
     public function scopeAutoload(Builder $query, Array $load = [])
     {
         if (!$autoloads = $this->autoload) {
-            throw new Exception('No column configured to be autoloaded - ' . $this::class);
+            Log::error('No column configured to be autoloaded - ' . $this::class);
+            return;
         }
 
         if (empty($load)) {

@@ -2,6 +2,7 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,7 +23,8 @@ trait HasRange
     public function scopeRange(Builder $query, array $range = [])
     {
         if (!$ranges = $this->range) {
-            throw new Exception('No column configured to be ranged - ' . $this::class);
+            Log::error('No column configured to be ranged - ' . $this::class);
+            return;
         }
 
         if (empty($range)) {

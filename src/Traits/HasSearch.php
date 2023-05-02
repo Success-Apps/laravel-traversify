@@ -24,7 +24,8 @@ trait HasSearch
     public function scopeSearch(Builder $query, string $keyword = '')
     {
         if (!$searches = $this->search) {
-            throw new Exception('No column configured to be searched - ' . $this::class);
+            Log::error('No column configured to be searched - ' . $this::class);
+            return;
         }
 
         if (empty($keyword)) {

@@ -3,6 +3,7 @@ namespace Traversify\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 trait HasLoadCount
@@ -17,7 +18,8 @@ trait HasLoadCount
     public function scopeLoadCount(Builder $query, array $load = [])
     {
         if (!$loadCounts = $this->loadCount) {
-            throw new Exception('No column configured to be load-counted - ' . $this::class);
+            Log::error('No column configured to be load-counted - ' . $this::class);
+            return;
         }
 
         if (empty($load)) {
