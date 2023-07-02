@@ -21,7 +21,7 @@ trait HasSearch
      * @param string $keyword
      * @throws Exception
      */
-    public function scopeSearch(Builder $query, string $keyword = '')
+    public function scopeSearch(Builder $query, string|array $keyword = '')
     {
         if (!$searches = $this->search) {
             Log::error('No column configured to be searched - ' . $this::class);
@@ -100,7 +100,13 @@ trait HasSearch
 
         $searchColumns = implode(', ', $columnList);
 
-        $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
+        if (is_array($keyword)) {
+            foreach ($keyword as $key) {
+                $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$key}%");
+            }
+        } else {
+            $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
+        }
     }
 
     /**
