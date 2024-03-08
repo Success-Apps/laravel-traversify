@@ -73,7 +73,7 @@ trait HasRange
                     $alias = null;
 
                     if (!$this->relationshipIsAlreadyJoined($query, $tableName, $relation)) {
-                        if ($tableName == $motherOfAllModelsTable || $this->tableIsAlreadyJoined($query, $tableName)) {
+                        if ($tableName == $motherOfAllRelationsTable || $this->tableIsAlreadyJoined($query, $tableName)) {
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
 
