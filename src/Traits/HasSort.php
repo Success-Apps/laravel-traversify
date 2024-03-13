@@ -74,15 +74,13 @@ trait HasSort
 
                     $alias = null;
 
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-                        if ($tableName == $motherOfAllRelationsTable) {
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName, $relation)) {
+                        if ($tableName == $motherOfAllRelationsTable || $this->tableIsAlreadyJoined($query, $tableName)) {
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
 
                         $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
-
                         $tableName = $this->getTableOrAliasForModel($query, $tableName);
                     }
 
