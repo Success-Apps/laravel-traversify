@@ -495,21 +495,29 @@ trait HasLeftJoin
         $alias = null;
 
         foreach($tableJoins as $join) {
-            $join = strtolower($join);
+            if (is_string($join)) {
+                $join = strtolower($join);
 
-            if (str_contains($join, ' as ')) {
+                if (str_contains($join, ' as ')) {
 
-                $explode = explode(' as ', $join);
-                $joinTable = $explode[0];
-                $alias = $explode[1];
+                    $explode = explode(' as ', $join);
+                    $join = $explode[0];
+                    $alias = $explode[1];
 
-                if ($joinTable == $tableName) {
-                    return $alias;
+                    if ($join == $tableName) {
+                        return $alias;
+                    }
                 }
-            }
 
-            if ($join == $tableName) {
-                return $tableName;
+                if ($join == $tableName) {
+                    return $tableName;
+                }
+            } else if ($join instanceof Expression) {
+                $expression = $join->getValue($this->getGrammar());
+
+                if (str_contains($expression, "from `$tableName`")) {
+                    return true;
+                }
             }
         };
 
