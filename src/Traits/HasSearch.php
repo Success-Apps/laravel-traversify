@@ -48,6 +48,8 @@ trait HasSearch
 
         $motherOfAllModels = (new self);
         $motherOfAllModelsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllModelsTable;
+        $tableName = null;
 
         foreach($searchableList as $relations => $columns) {
 
