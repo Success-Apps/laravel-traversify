@@ -48,6 +48,8 @@ trait HasSearch
 
         $motherOfAllModels = (new self);
         $motherOfAllModelsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllModelsTable;
+        $tableName = null;
 
         foreach($searchableList as $relations => $columns) {
 
@@ -60,7 +62,7 @@ trait HasSearch
 
             foreach ($relationsSplit as $index => $relationName) {
 
-                if (strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $relationName)) != $motherOfAllModelsTable) {
+                if ($relationName != $motherOfAllModelsTable) {
 
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
@@ -68,13 +70,16 @@ trait HasSearch
 
                     $alias = null;
 
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName, $relation)) {
-                        if ($tableName == $motherOfAllModelsTable || $this->tableIsAlreadyJoined($query, $tableName)) {
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+
+                        if ($tableName == $motherOfAllModelsTable) {
+
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
 
                         $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
+
                         $tableName = $this->getTableOrAliasForModel($query, $tableName);
                     }
 
@@ -86,7 +91,9 @@ trait HasSearch
             }
 
             foreach ($columns as $searchColumn) {
+
                 $currentColumn = $this->prepSearchId($lastModel, $lastRelationTable, $searchColumn);
+
                 $columnList[] = $currentColumn;
             }
         }

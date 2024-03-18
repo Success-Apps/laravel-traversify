@@ -249,10 +249,14 @@ trait HasLeftJoin
     private function relationshipIsAlreadyJoined(Builder $query, string $tableName, $relation): bool
     {
         $existingJoins = collect($query->getQuery()->joins);
+        $parentTable = $relation->getParent()->getTable();
+
+        $searchKey = null;
         $searchValue = null;
 
         switch (true) {
             case ($relation instanceof BelongsTo):
+                $pivotTable = $relation->getRelated()->getTable();
                 $relationTable = $relation->getModel()->getTable();
                 $tableOrAlias = $relationTable;
 
@@ -260,6 +264,7 @@ trait HasLeftJoin
                 $searchValue = $relation->getQualifiedForeignKeyName();
                 break;
             case ($relation instanceof BelongsToMany):
+                $pivotTable = $relation->getRelated()->getTable();
                 $relationTable = $relation->getModel()->getTable();
                 $tableOrAlias = $relationTable;
 
@@ -280,7 +285,7 @@ trait HasLeftJoin
                 $tableOrAlias = $relationTable;
 
                 $searchKey = "{$parentTable}.{$relation->getLocalKeyName()}";
-                $searchValue = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
+                $seearchValue = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
                 break;
             case ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough):
                 $throughTable = $relation->getParent()->getTable();
@@ -288,13 +293,15 @@ trait HasLeftJoin
                 $tableOrAlias = $farTable;
 
                 $searchKey1 = "{$throughTable}.{$relation->getFirstKeyName()}";
-                $searchValue1 = $relation->getQualifiedLocalKeyName();
+                $seearchValue1 = $relation->getQualifiedLocalKeyName();
                 $searchKey2 = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
-                $searchValue2 = "{$throughTable}.{$relation->getSecondLocalKeyName()}";
+                $seearchValue2 = "{$throughTable}.{$relation->getSecondLocalKeyName()}";
                 return $this->checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey1, $searchValue1, $tableName) && $this->checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey2, $searchValue2, $tableName);
+                break;
             default:
                 Log::info("No Relationship Class found => ".$relation::class);
                 throw new Exception("No Relationship Class found => ".$relation::class);
+                break;
         }
 
         if ($searchKey && $searchValue) {
