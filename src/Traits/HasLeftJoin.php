@@ -23,27 +23,25 @@ trait HasLeftJoin
     {
         $joinType = 'leftJoin';
 
-        switch (true) {
-            case ($relation instanceof BelongsTo):
-                $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
-                break;
-            case ($relation instanceof BelongsToMany):
-                $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
-                break;
-            case ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany):
-                $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
-                break;
-            case ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany):
-                $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
-                break;
-            case ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough):
-                $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
-                break;
-            default:
-                Log::info("No Relationship Class found => ".$relation::class);
-                throw new Exception("No Relationship Class found => ".$relation::class);
-                break;
-        }
+        if ($relation instanceof BelongsToMany) {
+
+            $this->performJoinForEloquentForBelongsToMany($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany) {
+
+            $this->performJoinForEloquentForMorph($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany) {
+
+            $this->performJoinForEloquentForHasMany($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
+
+            $this->performJoinForEloquentForHasManyThrough($query, $relation, $joinType, $alias);
+        } else if ($relation instanceof BelongsTo) {
+
+            $this->performJoinForEloquentForBelongsTo($query, $relation, $joinType, $alias);
+        } else {
+            Log::info("No Relationship Class found => ".$relation::class);
+            throw new Exception("No Relationship Class found => ".$relation::class);
+        };
     }
 
     /**
@@ -56,6 +54,7 @@ trait HasLeftJoin
         $tableOrAlias = $relationTable;
 
         if ($alias) {
+
             $tableOrAlias = $alias;
             $relationTable = $relationTable . ' AS ' . $alias;
         }
@@ -63,6 +62,7 @@ trait HasLeftJoin
         $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias) {
 
             $join->on(
+
                 "{$tableOrAlias}.{$relation->getOwnerKeyName()}",
                 '=',
                 $relation->getQualifiedForeignKeyName()
@@ -72,6 +72,7 @@ trait HasLeftJoin
             $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 
             if ($this->usesSoftDeletes($relation->getModel())) {
+
                 $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
             }
         });
@@ -87,6 +88,7 @@ trait HasLeftJoin
         $tableOrAlias = $relationTable;
 
         if ($alias) {
+
             $tableOrAlias = $alias;
             $relationTable = $relationTable . ' AS ' . $alias;
         }
@@ -94,6 +96,7 @@ trait HasLeftJoin
         $query->{$joinType}($pivotTable, function ($join) use ($relation, $pivotTable) {
 
             $join->on(
+
                 $relation->getQualifiedForeignPivotKeyName(),
                 '=',
                 $relation->getQualifiedParentKeyName()
@@ -103,6 +106,7 @@ trait HasLeftJoin
             $this->applyExtraConditions($relation, $join, $ignoredKeys);
 
             if ($this->usesSoftDeletes($relation->getRelated())) {
+
                 $join->whereNull("{$pivotTable}.{$relation->getRelated()->getDeletedAtColumn()}");
             }
         });
@@ -110,6 +114,7 @@ trait HasLeftJoin
         $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $tableOrAlias) {
 
             $join->on(
+
                 "{$tableOrAlias}.{$relation->getModel()->getKeyName()}",
                 '=',
                 $relation->getQualifiedRelatedPivotKeyName()
@@ -135,6 +140,7 @@ trait HasLeftJoin
         $tableOrAlias = $relationTable;
 
         if ($alias) {
+
             $tableOrAlias = $alias;
             $relationTable = $relationTable . ' AS ' . $alias;
         }
@@ -142,6 +148,7 @@ trait HasLeftJoin
         $query->{$joinType}($relationTable, function ($join) use ($relation, $tableOrAlias, $parentTable) {
 
             $join->on(
+
                 "{$tableOrAlias}.{$relation->getForeignKeyName()}",
                 '=',
                 "{$parentTable}.{$relation->getLocalKeyName()}"
@@ -151,6 +158,7 @@ trait HasLeftJoin
             $this->applyExtraConditions($relation, $join, $ignoredKeys, $tableOrAlias);
 
             if ($this->usesSoftDeletes($relation->getModel())) {
+
                 $join->whereNull("{$tableOrAlias}.{$relation->getModel()->getDeletedAtColumn()}");
             }
         });
@@ -167,6 +175,7 @@ trait HasLeftJoin
         $tableOrAlias = $relationTable;
 
         if ($alias) {
+
             $tableOrAlias = $alias;
             $relationTable = $relationTable . ' AS ' . $alias;
         }
@@ -174,6 +183,7 @@ trait HasLeftJoin
         $query->{$joinType}($relationTable, function ($join) use ($relation, $relationTable, $parentTable, $tableOrAlias) {
 
             $join->on(
+
                 "{$parentTable}.{$relation->getLocalKeyName()}",
                 '=',
                 "{$tableOrAlias}.{$relation->getForeignKeyName()}"
@@ -199,6 +209,7 @@ trait HasLeftJoin
         $tableOrAlias = $farTable;
 
         if ($alias) {
+
             $tableOrAlias = $alias;
             $relationTable = $farTable . ' AS ' . $alias;
         }
@@ -206,6 +217,7 @@ trait HasLeftJoin
         $query->{$joinType}($throughTable, function ($join) use ($relation, $throughTable, $farTable) {
 
             $join->on(
+
                 "{$throughTable}.{$relation->getFirstKeyName()}",
                 '=',
                 $relation->getQualifiedLocalKeyName()
@@ -216,6 +228,7 @@ trait HasLeftJoin
             $this->applyExtraConditions($relation, $join, $ignoredKeys);
 
             if ($this->usesSoftDeletes($relation->getParent())) {
+
                 $join->whereNull("{$throughTable}.{$relation->getParent()->getDeletedAtColumn()}");
             }
         });
@@ -223,6 +236,7 @@ trait HasLeftJoin
         $query->{$joinType}($tableOrAlias, function ($join) use ($relation, $throughTable, $farTable, $tableOrAlias) {
 
             $join->on(
+
                 "{$tableOrAlias}.{$relation->getForeignKeyName()}",
                 '=',
                 "{$throughTable}.{$relation->getSecondLocalKeyName()}"
@@ -237,140 +251,6 @@ trait HasLeftJoin
 //            }
         });
 
-    }
-
-    /**
-     * Check if query has Join
-     *
-     * @param Builder $query
-     * @param string $tableName
-     * @return bool
-     */
-    private function relationshipIsAlreadyJoined(Builder $query, string $tableName, $relation): bool
-    {
-        $existingJoins = collect($query->getQuery()->joins);
-        $parentTable = $relation->getParent()->getTable();
-
-        $searchKey = null;
-        $searchValue = null;
-
-        switch (true) {
-            case ($relation instanceof BelongsTo):
-                $pivotTable = $relation->getRelated()->getTable();
-                $relationTable = $relation->getModel()->getTable();
-                $tableOrAlias = $relationTable;
-
-                $searchKey = "{$tableOrAlias}.{$relation->getOwnerKeyName()}";
-                $searchValue = $relation->getQualifiedForeignKeyName();
-                break;
-            case ($relation instanceof BelongsToMany):
-                $pivotTable = $relation->getRelated()->getTable();
-                $relationTable = $relation->getModel()->getTable();
-                $tableOrAlias = $relationTable;
-
-                $searchKey = "{$tableOrAlias}.{$relation->getModel()->getKeyName()}";
-                $searchValue = $relation->getQualifiedRelatedPivotKeyName();
-                break;
-            case ($relation instanceof MorphOne || $relation instanceof MorphMany || $relation instanceof MorphOneOrMany || $relation instanceof MorphTo || $relation instanceof MorphPivot || $relation instanceof MorphToMany):
-                $parentTable = $relation->getParent()->getTable();
-                $relationTable = $relation->getModel()->getTable();
-                $tableOrAlias = $relationTable;
-
-                $searchKey = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
-                $searchValue = "{$parentTable}.{$relation->getLocalKeyName()}";
-                break;
-            case ($relation instanceof HasMany || $relation instanceof HasOne || $relation instanceof HasOneOrMany):
-                $parentTable = $relation->getParent()->getTable();
-                $relationTable = $relation->getModel()->getTable();
-                $tableOrAlias = $relationTable;
-
-                $searchKey = "{$parentTable}.{$relation->getLocalKeyName()}";
-                $seearchValue = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
-                break;
-            case ($relation instanceof HasManyThrough || $relation instanceof HasOneThrough):
-                $throughTable = $relation->getParent()->getTable();
-                $farTable = $relation->getRelated()->getTable();
-                $tableOrAlias = $farTable;
-
-                $searchKey1 = "{$throughTable}.{$relation->getFirstKeyName()}";
-                $seearchValue1 = $relation->getQualifiedLocalKeyName();
-                $searchKey2 = "{$tableOrAlias}.{$relation->getForeignKeyName()}";
-                $seearchValue2 = "{$throughTable}.{$relation->getSecondLocalKeyName()}";
-                return $this->checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey1, $searchValue1, $tableName) && $this->checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey2, $searchValue2, $tableName);
-                break;
-            default:
-                Log::info("No Relationship Class found => ".$relation::class);
-                throw new Exception("No Relationship Class found => ".$relation::class);
-                break;
-        }
-
-        if ($searchKey && $searchValue) {
-            return $this->checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey, $searchValue, $tableName);
-        }
-
-        return false;
-    }
-
-    /**
-     * Check if columns / values exist in query joins
-     *
-     * @param $existingJoins
-     * @param $searchKey
-     * @param $searchValue
-     * @return bool
-     */
-    public function checkForJoinColumnsInExisitingQueryJoins($existingJoins, $searchKey, $searchValue, $tableName): bool
-    {
-        // Use 'some' instead of 'every' to check if any item meets the condition
-        return $existingJoins->some(function ($join) use ($searchKey, $searchValue) {
-            if (!($join instanceof Illuminate\Database\Query\JoinClause)) {
-                return false; // Non-JoinClause objects don't match
-            }
-
-            $wheres = $join->wheres;
-            $tableJoin = $join->getTable();
-
-            // Return boolean directly from array_filter condition
-            return array_filter($wheres, function ($where) use ($searchKey, $searchValue, $tableJoin, $tableName) {
-                    return $where[$searchKey] === $searchValue && $tableJoin === $tableName;
-                }) !== [];
-        });
-    }
-
-    /**
-     * Check if this table been already joined already
-     *
-     * @param Builder $query
-     * @param string $tableName
-     * @return bool
-     */
-    private function tableIsAlreadyJoined(Builder $query, string $tableName)
-    {
-        $tableJoins = collect($query->getQuery()->joins)->pluck('table');
-
-        foreach($tableJoins as $join) {
-            if (is_string($join)) {
-                $join = strtolower($join);
-
-                if (str_contains($join, ' as ')) {
-
-                    $explode = explode(' as ', $join);
-                    $join = $explode[0];
-                }
-
-                if ($join == $tableName) {
-                    return true;
-                }
-            } else if ($join instanceof Expression) {
-                $expression = $join->getValue($this->getGrammar());
-
-                if (str_contains($expression, "from `$tableName`")) {
-                    return true;
-                }
-            }
-        };
-
-        return false;
     }
 
     /**
@@ -486,6 +366,42 @@ trait HasLeftJoin
      *
      * @param Builder $query
      * @param string $tableName
+     * @return bool
+     */
+    private function relationshipIsAlreadyJoined(Builder $query, string $tableName)
+    {
+        $tableJoins = collect($query->getQuery()->joins)->pluck('table');
+
+        foreach($tableJoins as $join) {
+            if (is_string($join)) {
+                $join = strtolower($join);
+
+                if (str_contains($join, ' as ')) {
+
+                    $explode = explode(' as ', $join);
+                    $join = $explode[0];
+                }
+
+                if ($join == $tableName) {
+                    return true;
+                }
+            } else if ($join instanceof Expression) {
+                $expression = $join->getValue($this->getGrammar());
+
+                if (str_contains($expression, "from `$tableName`")) {
+                    return true;
+                }
+            }
+        };
+
+        return false;
+    }
+
+    /**
+     * Check if query has Join
+     *
+     * @param Builder $query
+     * @param string $tableName
      * @return false|string
      */
     private function getTableOrAliasForModel(Builder $query, string $tableName)
@@ -495,21 +411,29 @@ trait HasLeftJoin
         $alias = null;
 
         foreach($tableJoins as $join) {
-            $join = strtolower($join);
+            if (is_string($join)) {
+                $join = strtolower($join);
 
-            if (str_contains($join, ' as ')) {
+                if (str_contains($join, ' as ')) {
 
-                $explode = explode(' as ', $join);
-                $joinTable = $explode[0];
-                $alias = $explode[1];
+                    $explode = explode(' as ', $join);
+                    $join = $explode[0];
+                    $alias = $explode[1];
 
-                if ($joinTable == $tableName) {
-                    return $alias;
+                    if ($join == $tableName) {
+                        return $alias;
+                    }
                 }
-            }
 
-            if ($join == $tableName) {
-                return $tableName;
+                if ($join == $tableName) {
+                    return $tableName;
+                }
+            } else if ($join instanceof Expression) {
+                $expression = $join->getValue($this->getGrammar());
+
+                if (str_contains($expression, "from `$tableName`")) {
+                    return true;
+                }
             }
         };
 
