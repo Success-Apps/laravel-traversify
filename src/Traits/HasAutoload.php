@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 trait HasAutoload
 {
-    public function scopeAutoload(Builder $query, Array $load = [])
+    public function scopeAutoload(Builder $query, Array $load = []): void
     {
         if (!$autoloads = $this->autoload) {
             Log::error('No column configured to be autoloaded - ' . $this::class);
@@ -21,9 +21,7 @@ trait HasAutoload
         $clean = [];
 
         foreach($autoloads as $autoload) {
-
             if (in_array($autoload, array_values($load))) {
-
                 $clean[] = $autoload;
             }
         }

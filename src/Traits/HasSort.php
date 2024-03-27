@@ -18,10 +18,10 @@ trait HasSort
      *
      * @param Builder $query
      * @param array $sort
-     * @return Builder|void
+     * @return void
      * @throws Exception
      */
-    public function scopeSort(Builder $query, array $sort = [])
+    public function scopeSort(Builder $query, array $sort = []): void
     {
         if (!$sorts = $this->sort) {
             Log::error('No column configured to be sorted - ' . $this::class);
@@ -37,9 +37,7 @@ trait HasSort
         }
 
         foreach($sorts as $sortable) {
-
             if (in_array($sortable, array_keys($sort)) && in_array(strtoupper($sort[$sortable]), ['ASC', 'DESC'])) {
-
                 $this->createSortQuery($query, $sortable, $sort);
             }
         }
@@ -53,44 +51,70 @@ trait HasSort
      * @return void
      * @throws InvalidArgumentException
      */
-    public function createSortQuery(Builder $query, string $sortable, array $sort)
+    public function createSortQuery(Builder $query, string $sortable, array $sort): void
     {
         $sortables = explode('.', $sortable);
         $sortColumn = array_pop($sortables);
 
-        $motherOfAllRelationsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllRelationsTable;
+        $motherOfAllModelsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllModelsTable;
         $currentModel = new self;
 
         if (count($sortables)) {
 
             foreach ($sortables as $index => $relationName) {
 
-                if ($relationName != $motherOfAllRelationsTable) {
+                $alias = null;
+
+                if (strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $relationName)) !== $motherOfAllModelsTable) {
 
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
+                    $relationshipJoined = $this->relationshipIsAlreadyJoined($query, $tableName, $relation);
 
-                    $alias = null;
+                    if ($relationshipJoined['table_exists']) {
 
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-                        if ($tableName == $motherOfAllRelationsTable) {
+                        if (!($relationshipJoined['tables_joined'] && $relationshipJoined['with_columns'])) {
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                            $this->performJoinForEloquent($query, $relation, $alias);
+                        } else {
+                            $tableName = $this->getTableOrAliasForModel($query, $tableName);
                         }
 
-                        $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
 
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+                        if ($tableName === $motherOfAllModelsTable) {
+                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                        }
+                        $this->performJoinForEloquent($query, $relation, $alias);
+
                     }
 
-                    if (array_key_last($sortables) == $index) {
-                        $lastRelationTable = $alias ?? $tableName;
+                } else {
+
+                    if ($index > 0) {
+                        $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+                        $tableName = $motherOfAllModelsTable;
                     }
+
                 }
+
+                if (array_key_last($sortables) == $index) {
+                    $lastRelationTable = $alias ?? $tableName;
+                    $lastModel = $currentModel;
+                }
+
             }
+
+        }
+
+        $sql = $query->toSql();
+        $hasGroupBy = stripos($sql, 'group by') !== false;
+        if ($hasGroupBy) {
+            $query->groupBy($lastRelationTable.'.'.$sortColumn);
         }
 
         $query->orderBy($lastRelationTable.'.'.$sortColumn, $sort[$sortable]);

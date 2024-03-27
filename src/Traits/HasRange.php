@@ -20,7 +20,7 @@ trait HasRange
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    public function scopeRange(Builder $query, array $range = [])
+    public function scopeRange(Builder $query, array $range = []): void
     {
         if (!$ranges = $this->range) {
             Log::error('No column configured to be ranged - ' . $this::class);
@@ -36,9 +36,7 @@ trait HasRange
         }
 
         foreach($ranges as $rangeable) {
-
             if (in_array($rangeable, array_keys($range))) {
-
                 $this->createRangeQuery($query, $rangeable, $range[$rangeable]);
             }
         }
@@ -52,39 +50,59 @@ trait HasRange
      * @param array $value
      * @return mixed
      */
-    private function createRangeQuery(Builder $query, string $rangeable, array $value)
+    private function createRangeQuery(Builder $query, string $rangeable, array $value): void
     {
         $rangeables = explode('.', $rangeable);
         $rangeColumn = array_pop($rangeables);
 
-        $motherOfAllRelationsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllRelationsTable;
+        $motherOfAllModelsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllModelsTable;
         $currentModel = new self;
 
         if (count($rangeables)) {
 
             foreach ($rangeables as $index => $relationName) {
 
-                if ($relationName != $motherOfAllRelationsTable) {
+                $alias = null;
+
+                if (strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $relationName)) !== $motherOfAllModelsTable) {
+
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
+                    $relationshipJoined = $this->relationshipIsAlreadyJoined($query, $tableName, $relation);
 
-                    $alias = null;
+                    if ($relationshipJoined['table_exists']) {
 
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-                        if ($tableName == $motherOfAllRelationsTable) {
+                        if (!($relationshipJoined['tables_joined'] && $relationshipJoined['with_columns'])) {
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                            $this->performJoinForEloquent($query, $relation, $alias);
+                        } else {
+                            $tableName = $this->getTableOrAliasForModel($query, $tableName);
                         }
 
-                        $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
+
+                        if ($tableName === $motherOfAllModelsTable) {
+                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                        }
+                        $this->performJoinForEloquent($query, $relation, $alias);
+
                     }
 
-                    if (array_key_last($rangeables) == $index) {
-                        $lastRelationTable = $alias ?? $tableName;
+                } else {
+
+                    if ($index > 0) {
+                        $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
+                        $this->performJoinForEloquent($query, $relation, $alias);
+                    } else {
+                        $tableName = $motherOfAllModelsTable;
                     }
+
+                }
+
+                if (array_key_last($rangeables) == $index) {
+                    $lastRelationTable = $alias ?? $tableName;
                 }
             }
         }
