@@ -15,7 +15,7 @@ trait HasLoadCount
      * @param array $load
      * @throws Exception
      */
-    public function scopeLoadCount(Builder $query, array $load = []): void
+    public function scopeLoadCount(Builder $query, array $load = [])
     {
         if (!$loadCounts = $this->loadCount) {
             Log::error('No column configured to be load-counted - ' . $this::class);

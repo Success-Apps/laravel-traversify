@@ -20,7 +20,7 @@ trait HasFilters
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    public function scopeFilter(Builder $query, array $filter = []): void
+    public function scopeFilter(Builder $query, array $filter = [])
     {
         if (!$filters = $this->filters) {
             Log::error('No column configured to be filtered - ' . $this::class);
@@ -36,7 +36,11 @@ trait HasFilters
         }
 
         foreach($filters as $filterable) {
+
             if(in_array($filterable, array_keys($filter))) {
+
+//                $value = is_array($filter[$filterable]) ? $filter[$filterable] : [$filter[$filterable]];
+
                 $this->createFilterQuery($query, $filterable, $filter[$filterable]);
             }
         }
@@ -52,65 +56,40 @@ trait HasFilters
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    private function createFilterQuery(Builder $query, string $filterable, mixed $value): void
+    private function createFilterQuery(Builder $query, string $filterable, mixed $value)
     {
         $filterables = explode('.', $filterable);
         $filterColumn = array_pop($filterables);
 
-        $motherOfAllModelsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllModelsTable;
+        $motherOfAllRelationsTable = (new self)->getTable();
+        $lastRelationTable = $motherOfAllRelationsTable;
         $currentModel = new self;
 
         if (count($filterables)) {
 
-            Log::info($filterables);
-
             foreach ($filterables as $index => $relationName) {
 
-                $alias = null;
-
-                Log::info([$relationName, $index]);
-
-                if (strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $relationName)) !== $motherOfAllModelsTable) {
-
+                if ($relationName != $motherOfAllRelationsTable) {
                     $relation = $currentModel->{$relationName}();
                     $currentModel = $relation->getRelated();
                     $tableName = $currentModel->getTable();
-                    $relationshipJoined = $this->relationshipIsAlreadyJoined($query, $tableName, $relation);
 
-                    if ($relationshipJoined['table_exists']) {
+                    $alias = null;
 
-                        if (!($relationshipJoined['tables_joined'] && $relationshipJoined['with_columns'])) {
-                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
-                            $this->performJoinForEloquent($query, $relation, $alias);
-                        } else {
-                            $tableName = $this->getTableOrAliasForModel($query, $tableName);
-                        }
-
-                    } else {
-
-                        if ($tableName === $motherOfAllModelsTable) {
+                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
+                        if ($tableName == $motherOfAllRelationsTable) {
                             $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         }
-                        $this->performJoinForEloquent($query, $relation, $alias);
 
-                    }
-
-                } else {
-
-                    if ($index > 0) {
-                        $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
                         $this->performJoinForEloquent($query, $relation, $alias);
                     } else {
-                        $tableName = $motherOfAllModelsTable;
+                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
                     }
 
+                    if (array_key_last($filterables) == $index) {
+                        $lastRelationTable = $alias ?? $tableName;
+                    }
                 }
-
-                if (array_key_last($filterables) == $index) {
-                    $lastRelationTable = $alias ?? $tableName;
-                }
-
             }
         }
 
