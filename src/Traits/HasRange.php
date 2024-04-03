@@ -2,6 +2,7 @@
 namespace Traversify\Traits;
 
 use Exception;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use InvalidArgumentException;
@@ -20,9 +21,9 @@ trait HasRange
      * @throws RuntimeException
      * @throws InvalidArgumentException
      */
-    public function scopeRange(Builder $query, array $range = [])
+    public function scopeRange(Builder $query, array $range = []): void
     {
-        if (!$ranges = $this->range) {
+        if (!$rangeFilters = $this->range) {
             Log::error('No column configured to be ranged - ' . $this::class);
             return;
         }
@@ -35,60 +36,37 @@ trait HasRange
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
         }
 
-        foreach($ranges as $rangeable) {
+        foreach($range as $key => $value) {
 
-            if (in_array($rangeable, array_keys($range))) {
-
-                $this->createRangeQuery($query, $rangeable, $range[$rangeable]);
+            if (!in_array($key, $rangeFilters)) {
+                continue;
             }
-        }
-    }
 
-    /**
-     * Create Range Query
-     *
-     * @param Builder $query
-     * @param string $rangeable
-     * @param array $value
-     * @return mixed
-     */
-    private function createRangeQuery(Builder $query, string $rangeable, array $value)
-    {
-        $rangeables = explode('.', $rangeable);
-        $rangeColumn = array_pop($rangeables);
-
-        $motherOfAllRelationsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllRelationsTable;
-        $currentModel = new self;
-
-        if (count($rangeables)) {
-
-            foreach ($rangeables as $index => $relationName) {
-
-                if ($relationName != $motherOfAllRelationsTable) {
-                    $relation = $currentModel->{$relationName}();
-                    $currentModel = $relation->getRelated();
-                    $tableName = $currentModel->getTable();
-
-                    $alias = null;
-
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-                        if ($tableName == $motherOfAllRelationsTable) {
-                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
-                        }
-
-                        $this->performJoinForEloquent($query, $relation, $alias);
-                    } else {
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
-                    }
-
-                    if (array_key_last($rangeables) == $index) {
-                        $lastRelationTable = $alias ?? $tableName;
-                    }
-                }
+            $rangeBoundaries = $value;
+            if (count($rangeBoundaries) != 2) {
+                continue;
             }
-        }
 
-        $query->whereBetween($lastRelationTable.'.'.$rangeColumn, $value);
+            $currentModel = new self;
+            $relationsSplit = explode('.', $key);
+            $rangeColumn = array_pop($relationsSplit);
+            $result['last_relation_table'] = $currentModel->getTable();
+
+            if (count($relationsSplit)) {
+                $result = $this->performJoinLogic($query, $currentModel, $relationsSplit, $currentModel->getTable(), $currentModel);
+            }
+
+            $wheres = $query->getQuery()->wheres;
+            $finalColumn = $result['last_relation_table'].'.'.$rangeColumn;
+
+            $filteredWheres = Arr::where($wheres, function ($item) {
+                return $item['type'] === 'between' && $item['column'] === $finalColumn && $item['values'] === $value && $item['not'] === false;
+            });
+
+            if (!count($filteredWheres)) {
+                $query->whereBetween($finalColumn, $rangeBoundaries);
+            }
+
+        }
     }
 }

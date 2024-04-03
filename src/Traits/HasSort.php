@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 trait HasSort
 {
@@ -18,12 +19,14 @@ trait HasSort
      *
      * @param Builder $query
      * @param array $sort
-     * @return Builder|void
+     * @return void
      * @throws Exception
      */
-    public function scopeSort(Builder $query, array $sort = [])
+    public function scopeSort(Builder $query, array $sort = []): void
     {
-        if (!$sorts = $this->sort) {
+        $joins = $query->getQuery()->joins;
+
+        if (!$sortFilters = $this->sort) {
             Log::error('No column configured to be sorted - ' . $this::class);
             return;
         }
@@ -36,63 +39,45 @@ trait HasSort
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
         }
 
-        foreach($sorts as $sortable) {
+        sort($sortFilters);
 
-            if (in_array($sortable, array_keys($sort)) && in_array(strtoupper($sort[$sortable]), ['ASC', 'DESC'])) {
+        foreach ($sort as $key => $value) {
 
-                $this->createSortQuery($query, $sortable, $sort);
+            if (!in_array($key, $sortFilters) || !in_array(strtoupper($value), ['ASC', 'DESC'])) {
+                continue;
             }
-        }
-    }
 
-    /**
-     *
-     * @param Builder $query
-     * @param string $sortable
-     * @param mixed $sort
-     * @return void
-     * @throws InvalidArgumentException
-     */
-    public function createSortQuery(Builder $query, string $sortable, array $sort)
-    {
-        $sortables = explode('.', $sortable);
-        $sortColumn = array_pop($sortables);
+            $currentModel = new self;
+            $relationsSplit = explode('.', $key);
+            $sortColumn = array_pop($relationsSplit);
+            $result['last_relation_table'] = $currentModel->getTable();
 
-        $motherOfAllRelationsTable = (new self)->getTable();
-        $lastRelationTable = $motherOfAllRelationsTable;
-        $currentModel = new self;
+            if (count($relationsSplit)) {
+                $result = $this->performJoinLogic($query, $currentModel, $relationsSplit, $currentModel->getTable(), $currentModel);
+            }
 
-        if (count($sortables)) {
+            // For the use of Strict DB Connection
+            $tableReflector = DB::connection()->getSchemaBuilder()->getColumnListing($result['last_relation_table']);
 
-            foreach ($sortables as $index => $relationName) {
+            if (in_array($sortColumn, $tableReflector)) {
+                $groupBys = $query->getQuery()->groups;
+                if ($groupBys && !in_array($result['last_relation_table'].'.'.$sortColumn, $groupBys)) {
+                    $query->groupBy($result['last_relation_table'].'.'.$sortColumn);
+                }
 
-                if ($relationName != $motherOfAllRelationsTable) {
-
-                    $relation = $currentModel->{$relationName}();
-                    $currentModel = $relation->getRelated();
-                    $tableName = $currentModel->getTable();
-
-                    $alias = null;
-
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-                        if ($tableName == $motherOfAllRelationsTable) {
-                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
-                        }
-
-                        $this->performJoinForEloquent($query, $relation, $alias);
-                    } else {
-
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
-                    }
-
-                    if (array_key_last($sortables) == $index) {
-                        $lastRelationTable = $alias ?? $tableName;
-                    }
+                $orderBys = $query->getQuery()->orders;
+                if (!$orderBys || !in_array($result['last_relation_table'].'.'.$sortColumn, $orderBys)) {
+                    $query->orderBy($result['last_relation_table'].'.'.$sortColumn, $value);
+                }
+            } else {
+                // Non Qualified column, or a column rsulting from a calculation
+                $orderBys = $query->getQuery()->orders;
+                if ($orderBys && !in_array($sortColumn, $orderBys)) {
+                    $query->orderBy($result['last_relation_table'].'.'.$sortColumn, $value);
                 }
             }
+
         }
 
-        $query->orderBy($lastRelationTable.'.'.$sortColumn, $sort[$sortable]);
     }
 }

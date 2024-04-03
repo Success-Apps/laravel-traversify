@@ -3,6 +3,13 @@ namespace Traversify\Traits;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -21,9 +28,11 @@ trait HasSearch
      * @param string $keyword
      * @throws Exception
      */
-    public function scopeSearch(Builder $query, string|array $keyword = '')
+    public function scopeSearch(Builder $query, string|array $keyword = ''): void
     {
-        if (!$searches = $this->search) {
+        $joins = $query->getQuery()->joins;
+
+        if (!$this->search || !count($this->search)) {
             Log::error('No column configured to be searched - ' . $this::class);
             return;
         }
@@ -33,12 +42,11 @@ trait HasSearch
         }
 
         $key = $this->connection ?: config('database.default');
-
-        if (config('database.connections.' . $key . '.driver') == 'pgsql') {
+        if (config('database.connections.' . $key . '.driver') === 'pgsql') {
             $this->like = 'ILIKE';
         }
 
-        $searchableList = $this->buildModelFiltersArray();
+        $searchables = $this->buildModelSearchColumnsArray();
 
         if (is_null($query->getQuery()->columns)) {
             $query->select(sprintf('%s.*', $query->getModel()->getTable()));
@@ -48,65 +56,38 @@ trait HasSearch
 
         $motherOfAllModels = (new self);
         $motherOfAllModelsTable = (new self)->getTable();
+        $motherOfAllModelsClassName = strtolower(class_basename($motherOfAllModels));
         $lastRelationTable = $motherOfAllModelsTable;
         $tableName = null;
 
-        foreach($searchableList as $relations => $columns) {
+        if (count($searchables)) {
 
-            $lastModel = $motherOfAllModels;
-            $lastRelationTable = $motherOfAllModelsTable;
+            foreach($searchables as $relations => $columns) {
 
-            $relationsSplit = explode('.', $relations);
+                $lastModel = $motherOfAllModels;
+                $lastRelationTable = $motherOfAllModelsTable;
+                $relationsSplit = explode('.', $relations);
+                $currentModel = new self;
 
-            $currentModel = new self;
+                $result = $this->performJoinLogic($query, $currentModel, $relationsSplit, $motherOfAllModelsTable, $motherOfAllModels);
 
-            foreach ($relationsSplit as $index => $relationName) {
-
-                if ($relationName != $motherOfAllModelsTable) {
-
-                    $relation = $currentModel->{$relationName}();
-                    $currentModel = $relation->getRelated();
-                    $tableName = $currentModel->getTable();
-
-                    $alias = null;
-
-                    if (!$this->relationshipIsAlreadyJoined($query, $tableName)) {
-
-                        if ($tableName == $motherOfAllModelsTable) {
-
-                            $alias = substr(str_shuffle("abcdefghijklmnopqrstuvwxyz"), 0, 3) . time();
-                        }
-
-                        $this->performJoinForEloquent($query, $relation, $alias);
-                    } else {
-
-                        $tableName = $this->getTableOrAliasForModel($query, $tableName);
-                    }
-
-                    if (array_key_last($relationsSplit) == $index) {
-                        $lastRelationTable = $alias ?? $tableName;
-                        $lastModel = $currentModel;
-                    }
+                foreach ($columns as $searchColumn) {
+                    $currentColumn = $this->prepSearchId($result['last_model'], $result['last_relation_table'], $searchColumn);
+                    $columnList[] = $currentColumn;
                 }
             }
 
-            foreach ($columns as $searchColumn) {
+            $searchColumns = implode(', ', $columnList);
 
-                $currentColumn = $this->prepSearchId($lastModel, $lastRelationTable, $searchColumn);
-
-                $columnList[] = $currentColumn;
+            if (is_array($keyword)) {
+                foreach ($keyword as $key) {
+                    $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$key}%");
+                }
+            } else {
+                $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
             }
         }
 
-        $searchColumns = implode(', ', $columnList);
-
-        if (is_array($keyword)) {
-            foreach ($keyword as $key) {
-                $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$key}%");
-            }
-        } else {
-            $query->whereRaw("CONCAT_WS(' ', {$searchColumns}) {$this->like} ?", "%{$keyword}%");
-        }
     }
 
     /**
@@ -116,12 +97,14 @@ trait HasSearch
      * @param string $searchColumn
      * @return string
      */
-    private function prepSearchId($model, string $tableName, string $searchColumn) {
-
+    private function prepSearchId($model, string $tableName, string $searchColumn): string
+    {
         $column = $tableName.'.'.$searchColumn;
         $id = $model->primaryKey ?? 'id';
 
-        if ($searchColumn === $id) {
+        $withPrefix = config('traversify.search_with_prefix') ?? false;
+
+        if ($searchColumn === $id && $withPrefix) {
 
             if (defined($model::class.'::ID_PREFIX')) {
                 $prefix =  strtoupper($model::class::ID_PREFIX);
@@ -141,12 +124,11 @@ trait HasSearch
     }
 
     /**
-     * Sort Searches
+     * Build Model Filters Array
      *
-     * @param $searches
      * @return array
      */
-    private function buildModelFiltersArray()
+    private function buildModelSearchColumnsArray(): array
     {
         $filterRelations = [];
 
@@ -154,7 +136,7 @@ trait HasSearch
 
         foreach ($this->search as $item) {
 
-            $relation = $this->getItemRelation($item);
+            $relation = $this->getSearchItemRelation($item);
 
             if (!in_array($relation, $filterRelations)) {
                 $filterRelations[] =  $relation;
@@ -166,17 +148,13 @@ trait HasSearch
         foreach ($filterRelations as $item) {
 
             if (!$item['relation']) {
-
                 $parent = new self;
-
-                $item['relation'] = $parent->getTable();
+                $item['relation'] = $parent->getTable() . '_columns_only';
             }
 
             if (!isset($summaryArray[$item['relation']])) {
-
                 $summaryArray[$item['relation']] = [$item['column']];
             } else {
-
                 array_push($summaryArray[$item['relation']], $item['column']);
             }
         }
@@ -189,12 +167,12 @@ trait HasSearch
     }
 
     /**
-     * Sort Searches
+     * Get Item Relation
      *
      * @param string $item
      * @return array
      */
-    private function getItemRelation(string $item)
+    private function getSearchItemRelation(string $item): array
     {
 
         $itemParts = explode('.', $item);
