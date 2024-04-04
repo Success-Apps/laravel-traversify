@@ -73,7 +73,7 @@ trait HasSort
                 // Non Qualified column, or a column rsulting from a calculation
                 $orderBys = $query->getQuery()->orders;
                 if ($orderBys && !in_array($sortColumn, $orderBys)) {
-                    $query->orderBy($result['last_relation_table'].'.'.$sortColumn, $value);
+                    $query->orderBy($sortColumn, $value);
                 }
             }
 
