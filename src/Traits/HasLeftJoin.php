@@ -310,6 +310,7 @@ trait HasLeftJoin
                 }
 
             }
+
         }
 
         return [

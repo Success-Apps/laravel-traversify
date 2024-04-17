@@ -72,7 +72,7 @@ trait HasSort
             } else {
                 // Non Qualified column, or a column rsulting from a calculation
                 $orderBys = $query->getQuery()->orders;
-                if ($orderBys && !in_array($sortColumn, $orderBys)) {
+                if (!$orderBys || !in_array($sortColumn, $orderBys)) {
                     $query->orderBy($sortColumn, $value);
                 }
             }

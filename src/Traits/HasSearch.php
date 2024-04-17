@@ -56,16 +56,11 @@ trait HasSearch
 
         $motherOfAllModels = (new self);
         $motherOfAllModelsTable = (new self)->getTable();
-        $motherOfAllModelsClassName = strtolower(class_basename($motherOfAllModels));
-        $lastRelationTable = $motherOfAllModelsTable;
-        $tableName = null;
 
         if (count($searchables)) {
 
             foreach($searchables as $relations => $columns) {
 
-                $lastModel = $motherOfAllModels;
-                $lastRelationTable = $motherOfAllModelsTable;
                 $relationsSplit = explode('.', $relations);
                 $currentModel = new self;
 
