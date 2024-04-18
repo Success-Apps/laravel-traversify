@@ -104,7 +104,7 @@ trait HasLeftJoin
             $relationTable = $relationTable . ' AS ' . $alias;
         }
 
-        $query->{$joinType}($pivotTable, function ($join) use ($relation, $pivotTable, $wheres) {
+        $query->{$joinType}($pivotTable, function ($join) use ($relation, $pivotTable, $wheres, $tableOrAlias) {
 
             $join->on(
                 $relation->getQualifiedForeignPivotKeyName(),
@@ -660,7 +660,7 @@ trait HasLeftJoin
             }
         }
 
-        $filteredWheres = Arr::where($wheres, function ($item) {
+        $filteredWheres = Arr::where($wheres, function ($item) use ($column, $condition) {
             return $item['type'] === 'Basic' && $item['column'] === $column && $item['operator'] === $condition['operator'] && $item['values'] === $condition['value'];
         });
 
