@@ -84,6 +84,11 @@ trait HasSearch
         }
 
     }
+    
+    public function scopeSetSearch($query, array $search)
+    {
+        $this->search = $search;
+    }
 
     /**
      * Setup ID Search
